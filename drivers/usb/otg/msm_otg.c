@@ -1609,7 +1609,6 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
         }
     }
 #endif
-/*              */
 
 	if (motg->cur_power == mA)
 		return;
