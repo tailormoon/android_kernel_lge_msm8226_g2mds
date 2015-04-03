@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,13 +144,8 @@ int diag_process_smd_cntl_read_data(struct diag_smd_info *smd_info, void *buf,
 	while (count_bytes + HDR_SIZ <= total_recd) {
 		type = *(uint32_t *)(buf);
 		data_len = *(uint32_t *)(buf + 4);
-#ifdef CONFIG_LGE_USB_ENABLE
-		if (type < DIAG_CTRL_MSG_REG ||
-				 type > DIAG_CTRL_MSG_LGE_DIAG_ENABLE) {
-#else
 		if (type < DIAG_CTRL_MSG_REG ||
 				 type > DIAG_CTRL_MSG_LAST) {
-#endif
 			pr_alert("diag: In %s, Invalid Msg type %d proc %d",
 				 __func__, type, smd_info->peripheral);
 			break;
@@ -162,16 +157,7 @@ int diag_process_smd_cntl_read_data(struct diag_smd_info *smd_info, void *buf,
 			break;
 		}
 		count_bytes = count_bytes+HDR_SIZ+data_len;
-#ifdef CONFIG_LGE_DIAG_ENABLE
-		if(type == DIAG_CTRL_MSG_LGE_DIAG_ENABLE) {
-			extern int set_diag_enable_status(int); 
-			msg = buf+HDR_SIZ; 
-			set_diag_enable_status(msg->cmd_code); 
-			break;
-		} else if (type == DIAG_CTRL_MSG_REG && total_recd >= count_bytes) {
-#else
 		if (type == DIAG_CTRL_MSG_REG && total_recd >= count_bytes) {
-#endif
 			msg = buf+HDR_SIZ;
 			range = buf+HDR_SIZ+
 					sizeof(struct diag_ctrl_msg);
@@ -363,10 +349,19 @@ void diag_send_diag_mode_update_by_smd(struct diag_smd_info *smd_info,
 	int wr_size = -ENOMEM, retry_count = 0, timer;
 	struct diag_smd_info *data = NULL;
 
-	/* For now only allow the modem to receive the message */
-	if (!smd_info || smd_info->type != SMD_CNTL_TYPE ||
-		(smd_info->peripheral != MODEM_DATA))
+	if (!smd_info || smd_info->type != SMD_CNTL_TYPE) {
+		pr_err("diag: In %s, invalid channel info, smd_info: %p type: %d\n",
+					__func__, smd_info,
+					((smd_info) ? smd_info->type : -1));
 		return;
+	}
+
+	if (smd_info->peripheral < MODEM_DATA ||
+					smd_info->peripheral > WCNSS_DATA) {
+		pr_err("diag: In %s, invalid peripheral %d\n", __func__,
+							smd_info->peripheral);
+		return;
+	}
 
 	data = &driver->smd_data[smd_info->peripheral];
 	if (!data)
@@ -394,7 +389,9 @@ void diag_send_diag_mode_update_by_smd(struct diag_smd_info *smd_info,
 
 	if (smd_info->ch) {
 		while (retry_count < 3) {
+			mutex_lock(&smd_info->smd_ch_mutex);
 			wr_size = smd_write(smd_info->ch, buf, msg_size);
+			mutex_unlock(&smd_info->smd_ch_mutex);
 			if (wr_size == -ENOMEM) {
 				/*
 				 * The smd channel is full. Delay while
@@ -447,7 +444,9 @@ int diag_send_stm_state(struct diag_smd_info *smd_info,
 		stm_msg.version = 1;
 		stm_msg.control_data = stm_control_data;
 		while (retry_count < 3) {
+			mutex_lock(&smd_info->smd_ch_mutex);
 			wr_size = smd_write(smd_info->ch, &stm_msg, msg_size);
+			mutex_unlock(&smd_info->smd_ch_mutex);
 			if (wr_size == -ENOMEM) {
 				/*
 				 * The smd channel is full. Delay while

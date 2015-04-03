@@ -240,7 +240,6 @@
 		qcom,hsusb-otg-otg-control = <2>;
 		qcom,hsusb-otg-disable-reset;
 		qcom,dp-manual-pullup;
-		qcom,ahb-async-bridge-bypass;
 		qcom,disable-retention-with-vdd-min;
 
 		qcom,msm-bus,name = "usb2";
@@ -478,10 +477,18 @@
 		cpu-vdd-supply = <&apc_vreg_corner>;
 	};
 
+	qcom,cpubw {
+		compatible = "qcom,cpubw";
+		qcom,cpu-mem-ports = <1 512>;
+		qcom,bw-tbl =
+			<  762 /* 100 MHz */ >,
+			< 1525 /* 200 MHz */ >,
+			< 2540 /* 333 MHz */ >;
+	};
+
 	qcom,msm-cpufreq@0 {
 		reg = <0 4>;
 		compatible = "qcom,msm-cpufreq";
-		qcom,cpu-mem-ports = <1 512>;
 		qcom,cpufreq-table =
 			<  300000  762 >,
 			<  384000  762 >,
@@ -555,6 +562,8 @@
 	i2c@f9924000 { /* BLSP-1 QUP-3 */
 		cell-index = <2>;
 		compatible = "qcom,i2c-qup";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg-names = "qup_phys_addr";
 		reg = <0xf9924000 0x1000>;
 		interrupt-names = "qup_err_intr";

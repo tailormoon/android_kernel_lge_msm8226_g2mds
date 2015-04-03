@@ -75,17 +75,6 @@ synaptics_img_file := $(wildcard $(srctree)/firmware/synaptics/$(TARGET_PRODUCT)
 $(foreach var, $(synaptics_img_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
 synaptics_fw_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/synaptics/$(TARGET_PRODUCT)/*.ihex)))
 synaptics_fw_files := $(foreach var, $(synaptics_fw_list), synaptics/$(TARGET_PRODUCT)/$(var))
-# LGE_CHANGE - START
-# X3 KR only for same DTS usage,  2013-11-28 kyle.jeon@lge.com
-ifdef CONFIG_MACH_MSM8926_X3_KR
-touch_synap_limit_txt := $(wildcard $(srctree)/firmware/synaptics/x3_kr/*.txt)
-$(shell objcopy -I binary -O ihex $(touch_synap_limit_txt) $(touch_synap_limit_txt).ihex)
-synaptics_img_file := $(wildcard $(srctree)/firmware/synaptics/x3_kr/*.img)
-$(foreach var, $(synaptics_img_file),  $(shell objcopy -I binary -O ihex $(var) $(var).ihex))
-synaptics_fw_list := $(subst .ihex, , $(notdir $(wildcard $(srctree)/firmware/synaptics/x3_kr/*.ihex)))
-synaptics_fw_files := $(foreach var, $(synaptics_fw_list), synaptics/x3_kr/$(var))
-endif
-# LGE_CHANGE - END
 fw-shipped-$(CONFIG_LGE_TOUCH_SYNAPTICS) += $(synaptics_fw_files)
 
 fw-shipped-$(CONFIG_3C359) += 3com/3C359.bin

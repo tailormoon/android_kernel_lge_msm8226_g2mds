@@ -130,10 +130,6 @@ struct bms_battery_data {
 	defined(CONFIG_PM8921_BMS_MODULE) || \
 	defined(CONFIG_QPNP_BMS)
 
-#if defined(CONFIG_LGE_PM_BATTERY_CAPACITY_2100mAh) && defined(CONFIG_MACH_MSM8X10_W5C_VZW)
-#define CONFIG_LGE_PM_BATTERY_HITACI_2100mAh
-#endif
-
 #ifdef CONFIG_LGE_PM_BATTERY_PROFILE_DATA
 
 #ifdef CONFIG_LGE_PM_BATTERY_CAPACITY_1540mAh
@@ -154,12 +150,6 @@ extern struct bms_battery_data LGE_BL_64SH_3000mAh_Technohill_data;
 #elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_2100mAh)
 extern struct bms_battery_data LGE_LGC_2040mAH_data;
 extern struct bms_battery_data LGE_Tocad_2040mAh_data;
-#ifdef CONFIG_LGE_PM_BATTERY_HITACI_2100mAh
-extern struct bms_battery_data LGE_Hitaci_2040mAh_data;
-#endif
-#elif defined(CONFIG_LGE_PM_BATTERY_CAPACITY_3200mAh)
-extern struct bms_battery_data LGE_BL_47TH_3200mAh_LG_Chem_data;
-extern struct bms_battery_data LGE_BL_47TH_3200mAh_Tocad_data;
 #else
 extern struct bms_battery_data LGE_BL_54SH_2540mAh_LG_Chem_data;
 #endif

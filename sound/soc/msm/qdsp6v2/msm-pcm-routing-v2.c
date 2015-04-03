@@ -9,7 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-	 
 
 #include <linux/init.h>
 #include <linux/err.h>
@@ -37,11 +36,10 @@
 #include "msm-dolby-dap-config.h"
 #include "q6voice.h"
 #include "q6core.h"
-#define DEBUG
 
 
+#define DEBUG //                                                    
 
-#define pr_debugx(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
 struct msm_pcm_routing_bdai_data {
 	u16 port_id; /* AFE port ID */
@@ -1288,7 +1286,7 @@ static int msm_routing_get_eq_enable_mixer(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.integer.value[0] = eq_data[eq_idx].enable;
 
-	pr_debugx("%s: EQ #%d enable %d\n", __func__,
+	pr_debug("%s: EQ #%d enable %d\n", __func__,
 		eq_idx, eq_data[eq_idx].enable);
 	return 0;
 }
@@ -1300,7 +1298,7 @@ static int msm_routing_put_eq_enable_mixer(struct snd_kcontrol *kcontrol,
 					kcontrol->private_value)->reg;
 	int value = ucontrol->value.integer.value[0];
 
-	pr_debugx("%s: EQ #%d enable %d\n", __func__,
+	pr_debug("%s: EQ #%d enable %d\n", __func__,
 		eq_idx, value);
 	eq_data[eq_idx].enable = value;
 
@@ -1317,7 +1315,7 @@ static int msm_routing_get_eq_band_count_audio_mixer(
 
 	ucontrol->value.integer.value[0] = eq_data[eq_idx].num_bands;
 
-	pr_debugx("%s: EQ #%d bands %d\n", __func__,
+	pr_debug("%s: EQ #%d bands %d\n", __func__,
 		eq_idx, eq_data[eq_idx].num_bands);
 	return eq_data[eq_idx].num_bands;
 }
@@ -1355,15 +1353,15 @@ static int msm_routing_get_eq_band_audio_mixer(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[4] =
 			eq_data[eq_idx].eq_bands[band_idx].q_factor;
 
-	pr_debugx("%s: band_idx = %d\n", __func__,
+	pr_debug("%s: band_idx = %d\n", __func__,
 			eq_data[eq_idx].eq_bands[band_idx].band_idx);
-	pr_debugx("%s: filter_type = %d\n", __func__,
+	pr_debug("%s: filter_type = %d\n", __func__,
 			eq_data[eq_idx].eq_bands[band_idx].filter_type);
-	pr_debugx("%s: center_freq_hz = %d\n", __func__,
+	pr_debug("%s: center_freq_hz = %d\n", __func__,
 			eq_data[eq_idx].eq_bands[band_idx].center_freq_hz);
-	pr_debugx("%s: filter_gain = %d\n", __func__,
+	pr_debug("%s: filter_gain = %d\n", __func__,
 			eq_data[eq_idx].eq_bands[band_idx].filter_gain);
-	pr_debugx("%s: q_factor = %d\n", __func__,
+	pr_debug("%s: q_factor = %d\n", __func__,
 			eq_data[eq_idx].eq_bands[band_idx].q_factor);
 	return 0;
 }
@@ -2790,7 +2788,6 @@ static const struct snd_kcontrol_new dolby_dap_param_end_point_controls[] = {
 int msm_routing_get_rms_value_control(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol) {
 	int rc = 0;
-	int be_idx = 0;
 	char *param_value;
 	int *update_param_value;
 	uint32_t param_length = sizeof(uint32_t);
@@ -2800,26 +2797,21 @@ int msm_routing_get_rms_value_control(struct snd_kcontrol *kcontrol,
 		pr_err("%s, param memory alloc failed\n", __func__);
 		return -ENOMEM;
 	}
-	for (be_idx = 0; be_idx < MSM_BACKEND_DAI_MAX; be_idx++)
-		if (msm_bedais[be_idx].port_id == SLIMBUS_0_TX)
-			break;
-	if ((be_idx < MSM_BACKEND_DAI_MAX) && msm_bedais[be_idx].active) {
-		rc = adm_get_params(SLIMBUS_0_TX,
-				RMS_MODULEID_APPI_PASSTHRU,
-				RMS_PARAM_FIRST_SAMPLE,
-				param_length + param_payload_len,
-				param_value);
-		if (rc) {
-			pr_err("%s: get parameters failed\n", __func__);
-			kfree(param_value);
-			return -EINVAL;
-		}
-		update_param_value = (int *)param_value;
-		ucontrol->value.integer.value[0] = update_param_value[0];
-
-		pr_debug("%s: FROM DSP value[0] 0x%x\n",
-			  __func__, update_param_value[0]);
+	rc = adm_get_params(SLIMBUS_0_TX,
+			RMS_MODULEID_APPI_PASSTHRU,
+			RMS_PARAM_FIRST_SAMPLE,
+			param_length + param_payload_len,
+			param_value);
+	if (rc) {
+		pr_err("%s: get parameters failed\n", __func__);
+		kfree(param_value);
+		return -EINVAL;
 	}
+	update_param_value = (int *)param_value;
+	ucontrol->value.integer.value[0] = update_param_value[0];
+
+	pr_debug("%s: FROM DSP value[0] 0x%x\n",
+		__func__, update_param_value[0]);
 	kfree(param_value);
 	return 0;
 }

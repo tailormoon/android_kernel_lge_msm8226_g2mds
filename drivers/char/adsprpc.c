@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -564,8 +564,6 @@ static int get_args(uint32_t kernel, uint32_t sc, remote_arg_t *pra,
 		rpra[i].buf.len = pra[i].buf.len;
 		if (!rpra[i].buf.len)
 			continue;
-		//if (fds)
-		//	pr_err("adsprpc: get_args i=%d, fd=%d, num=%d\n", i, fds[i], list[i].num);
 		if (me->smmu.enabled && fds && (fds[i] >= 0)) {
 			len = buf_page_size(pra[i].buf.len);
 			handles[i] = ion_import_dma_buf(me->iclient, fds[i]);

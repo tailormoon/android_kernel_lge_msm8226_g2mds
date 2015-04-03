@@ -25,7 +25,6 @@
 #define FORMAT(fmt) "%s: %d: " fmt, __func__, __LINE__
 #define pr_fmt(fmt) KBUILD_MODNAME ": " FORMAT(fmt)
 
-#define DEBUG
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/list.h>
@@ -44,8 +43,6 @@
 #include <sound/compress_params.h>
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
-
-#define pr_debugx(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
 /* TODO:
  * - add substream support for multiple devices in case of
@@ -162,7 +159,7 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 	if (!stream->ops->pointer)
 		return -ENOTSUPP;
 	stream->ops->pointer(stream, tstamp);
-	pr_debugx("dsp consumed till %d total %d bytes\n",
+	pr_debug("dsp consumed till %d total %d bytes\n",
 		tstamp->byte_offset, tstamp->copied_total);
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		stream->runtime->total_bytes_transferred = tstamp->copied_total;
@@ -184,7 +181,7 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 		pr_debug("detected init and someone forgot to do a write\n");
 		return stream->runtime->buffer_size;
 	}
-	pr_debugx("app wrote %lld, DSP consumed %lld\n",
+	pr_debug("app wrote %lld, DSP consumed %lld\n",
 			stream->runtime->total_bytes_available,
 			stream->runtime->total_bytes_transferred);
 	if (stream->runtime->total_bytes_available ==
@@ -203,7 +200,7 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		avail->avail = stream->runtime->buffer_size - avail->avail;
 
-	pr_debugx("ret avail as %lld\n", avail->avail);
+	pr_debug("ret avail as %lld\n", avail->avail);
 	return avail->avail;
 }
 
@@ -242,7 +239,7 @@ static int snd_compr_write_data(struct snd_compr_stream *stream,
 		      (app_pointer * runtime->buffer_size);
 
 	dstn = runtime->buffer + app_pointer;
-	pr_debugx("copying %ld at %lld\n",
+	pr_debug("copying %ld at %lld\n",
 			(unsigned long)count, app_pointer);
 	if (count < runtime->buffer_size - app_pointer) {
 		if (copy_from_user(dstn, buf, count))
@@ -894,7 +891,8 @@ static int snd_compress_dev_disconnect(struct snd_device *device)
 	struct snd_compr *compr;
 
 	compr = device->device_data;
-	snd_unregister_device(compr->direction, compr->card, compr->device);
+	snd_unregister_device(SNDRV_DEVICE_TYPE_COMPRESS, compr->card,
+		compr->device);
 	return 0;
 }
 

@@ -14,9 +14,9 @@
  */
 
 /* 
- * DGMS MC-C05702-7 : Apply Autorun
- * CONFIG_USB_G_LGE_ANDROID_AUTORUN
- * CONFIG_USB_G_LGE_ANDROID_AUTORUN_LGE
+                                   
+                                   
+                                       
  */
 
 #include <linux/init.h>

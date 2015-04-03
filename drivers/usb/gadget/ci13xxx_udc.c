@@ -2840,7 +2840,7 @@ __acquires(udc->lock)
 				case USB_DEVICE_A_ALT_HNP_SUPPORT:
 					err = 0;
 					break;
-#endif //CONFIG_USB_G_LGE_ANDROID_OTG
+#endif //                            
 				case USB_DEVICE_TEST_MODE:
 					tmode = le16_to_cpu(req.wIndex) >> 8;
 					switch (tmode) {

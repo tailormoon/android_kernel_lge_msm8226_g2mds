@@ -34,8 +34,6 @@
 
 #include "msm-pcm-q6-v2.h"
 #include "msm-pcm-routing-v2.h"
-#define DEBUG
-#define pr_debugx(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
 
 static struct audio_locks the_locks;
@@ -142,8 +140,8 @@ static void event_handler(uint32_t opcode,
 
 	switch (opcode) {
 	case ASM_DATA_EVENT_WRITE_DONE_V2: {
-		pr_debugx("ASM_DATA_EVENT_WRITE_DONE_V2\n");
-		pr_debugx("Buffer Consumed = 0x%08x\n", *ptrmem);
+		pr_debug("ASM_DATA_EVENT_WRITE_DONE_V2\n");
+		pr_debug("Buffer Consumed = 0x%08x\n", *ptrmem);
 		prtd->pcm_irq_pos += prtd->pcm_count;
 		if (atomic_read(&prtd->start))
 			snd_pcm_period_elapsed(substream);
@@ -169,14 +167,14 @@ static void event_handler(uint32_t opcode,
 		wake_up(&the_locks.eos_wait);
 		break;
 	case ASM_DATA_EVENT_READ_DONE_V2: {
-		pr_debugx("ASM_DATA_EVENT_READ_DONE_V2\n");
-		pr_debugx("token = 0x%08x\n", token);
+		pr_debug("ASM_DATA_EVENT_READ_DONE_V2\n");
+		pr_debug("token = 0x%08x\n", token);
 		in_frame_info[token][0] = payload[4];
 		in_frame_info[token][1] = payload[5];
 		/* assume data size = 0 during flushing */
 		if (in_frame_info[token][0]) {
 			prtd->pcm_irq_pos += in_frame_info[token][0];
-			pr_debugx("pcm_irq_pos=%d\n", prtd->pcm_irq_pos);
+			pr_debug("pcm_irq_pos=%d\n", prtd->pcm_irq_pos);
 			if (atomic_read(&prtd->start))
 				snd_pcm_period_elapsed(substream);
 			if (atomic_read(&prtd->in_count) <= prtd->periods)
@@ -188,11 +186,12 @@ static void event_handler(uint32_t opcode,
 				&size, &idx))
 				q6asm_read_nolock(prtd->audio_client);
 		} else {
-			pr_debugx("%s: reclaim flushed buf in_count %x\n",
+			pr_debug("%s: reclaim flushed buf in_count %x\n",
 				__func__, atomic_read(&prtd->in_count));
+			prtd->pcm_irq_pos += prtd->pcm_count;
 			atomic_inc(&prtd->in_count);
 			if (atomic_read(&prtd->in_count) == prtd->periods) {
-				pr_debugx("%s: reclaimed all bufs\n", __func__);
+				pr_info("%s: reclaimed all bufs\n", __func__);
 				if (atomic_read(&prtd->start))
 					snd_pcm_period_elapsed(substream);
 				wake_up(&the_locks.read_wait);
@@ -209,7 +208,7 @@ static void event_handler(uint32_t opcode,
 				break;
 			}
 			if (prtd->mmap_flag) {
-				pr_debugx("%s:writing %d bytes of buffer to dsp\n",
+				pr_debug("%s:writing %d bytes of buffer to dsp\n",
 					__func__,
 					prtd->pcm_count);
 				q6asm_write_nolock(prtd->audio_client,
@@ -217,7 +216,7 @@ static void event_handler(uint32_t opcode,
 					0, 0, NO_TIMESTAMP);
 			} else {
 				while (atomic_read(&prtd->out_needed)) {
-					pr_debugx("%s:writing %d bytes of buffer to dsp\n",
+					pr_debug("%s:writing %d bytes of buffer to dsp\n",
 						__func__,
 						prtd->pcm_count);
 					q6asm_write_nolock(prtd->audio_client,
@@ -230,7 +229,7 @@ static void event_handler(uint32_t opcode,
 			atomic_set(&prtd->start, 1);
 			break;
 		default:
-			pr_err("%s:Payload = [0x%x]stat[0x%x]\n",
+			pr_debug("%s:Payload = [0x%x]stat[0x%x]\n",
 				__func__, payload[0], payload[1]);
 			break;
 		}
@@ -466,7 +465,7 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	struct msm_audio *prtd = runtime->private_data;
 
 	fbytes = frames_to_bytes(runtime, frames);
-	pr_debugx("%s: prtd->out_count = %d\n",
+	pr_debug("%s: prtd->out_count = %d\n",
 				__func__, atomic_read(&prtd->out_count));
 	ret = wait_event_timeout(the_locks.write_wait,
 			(atomic_read(&prtd->out_count)), 5 * HZ);
@@ -487,7 +486,7 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	}
 	bufptr = data;
 	if (bufptr) {
-		pr_debugx("%s:fbytes =%d: xfer=%d size=%d\n",
+		pr_debug("%s:fbytes =%d: xfer=%d size=%d\n",
 					__func__, fbytes, xfer, size);
 		xfer = fbytes;
 		if (copy_from_user(bufptr, buf, xfer)) {
@@ -496,9 +495,9 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 		}
 		buf += xfer;
 		fbytes -= xfer;
-		pr_debugx("%s:fbytes = %d: xfer=%d\n", __func__, fbytes, xfer);
+		pr_debug("%s:fbytes = %d: xfer=%d\n", __func__, fbytes, xfer);
 		if (atomic_read(&prtd->start)) {
-			pr_debugx("%s:writing %d bytes of buffer to dsp\n",
+			pr_debug("%s:writing %d bytes of buffer to dsp\n",
 					__func__, xfer);
 			ret = q6asm_write(prtd->audio_client, xfer,
 						0, 0, NO_TIMESTAMP);
@@ -559,12 +558,12 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	struct msm_audio *prtd = substream->runtime->private_data;
 
 
-	pr_debugx("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	fbytes = frames_to_bytes(runtime, frames);
 
-	pr_debugx("appl_ptr %d\n", (int)runtime->control->appl_ptr);
-	pr_debugx("hw_ptr %d\n", (int)runtime->status->hw_ptr);
-	pr_debugx("avail_min %d\n", (int)runtime->control->avail_min);
+	pr_debug("appl_ptr %d\n", (int)runtime->control->appl_ptr);
+	pr_debug("hw_ptr %d\n", (int)runtime->status->hw_ptr);
+	pr_debug("avail_min %d\n", (int)runtime->control->avail_min);
 
 	ret = wait_event_timeout(the_locks.read_wait,
 			(atomic_read(&prtd->in_count)), 5 * HZ);
@@ -573,22 +572,22 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 		goto fail;
 	}
 	if (!atomic_read(&prtd->in_count)) {
-		pr_debugx("%s: pcm stopped in_count 0\n", __func__);
+		pr_debug("%s: pcm stopped in_count 0\n", __func__);
 		return 0;
 	}
-	pr_debugx("Checking if valid buffer is available...%08x\n",
+	pr_debug("Checking if valid buffer is available...%08x\n",
 						(unsigned int) data);
 	data = q6asm_is_cpu_buf_avail(OUT, prtd->audio_client, &size, &idx);
 	bufptr = data;
-	pr_debugx("Size = %d\n", size);
-	pr_debugx("fbytes = %d\n", fbytes);
-	pr_debugx("idx = %d\n", idx);
+	pr_debug("Size = %d\n", size);
+	pr_debug("fbytes = %d\n", fbytes);
+	pr_debug("idx = %d\n", idx);
 	if (bufptr) {
 		xfer = fbytes;
 		if (xfer > size)
 			xfer = size;
 		offset = in_frame_info[idx][1];
-		pr_debugx("Offset value = %d\n", offset);
+		pr_debug("Offset value = %d\n", offset);
 		if (copy_to_user(buf, bufptr+offset, xfer)) {
 			pr_err("Failed to copy buf to user\n");
 			ret = -EFAULT;
@@ -597,9 +596,9 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 		fbytes -= xfer;
 		size -= xfer;
 		in_frame_info[idx][1] += xfer;
-		pr_debugx("%s:fbytes = %d: size=%d: xfer=%d\n",
+		pr_debug("%s:fbytes = %d: size=%d: xfer=%d\n",
 					__func__, fbytes, size, xfer);
-		pr_debugx(" Sending next buffer to dsp\n");
+		pr_debug(" Sending next buffer to dsp\n");
 		memset(&in_frame_info[idx], 0,
 			sizeof(uint32_t) * 2);
 		atomic_dec(&prtd->in_count);
@@ -612,7 +611,7 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	} else
 		pr_err("No valid buffer\n");
 
-	pr_debugx("Returning from capture_copy... %d\n", ret);
+	pr_debug("Returning from capture_copy... %d\n", ret);
 fail:
 	return ret;
 }
@@ -681,7 +680,7 @@ static snd_pcm_uframes_t msm_pcm_pointer(struct snd_pcm_substream *substream)
 	if (prtd->pcm_irq_pos >= prtd->pcm_size)
 		prtd->pcm_irq_pos = 0;
 
-	pr_debugx("pcm_irq_pos = %d\n", prtd->pcm_irq_pos);
+	pr_debug("pcm_irq_pos = %d\n", prtd->pcm_irq_pos);
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));
 }
 
@@ -937,7 +936,8 @@ static __devinit int msm_pcm_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node,
-				"qti,msm-pcm-low-latency")){
+				"qti,msm-pcm-low-latency")) {
+
 		pdata->perf_mode = LOW_LATENCY_PCM_MODE;
 		rc = of_property_read_string(pdev->dev.of_node,
 			"qti,latency-level", &latency_level);

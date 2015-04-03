@@ -184,9 +184,9 @@
 			<268000 348000>,
 			<505000 657000>;
 		qcom,buffer-type-tz-usage-table = <0x1 0x1>,
-            <0x6 0x2>,
-            <0x7C0 0x3>;
-        qcom,max-hw-load = <352800>; /* 720p @ 30 + 1080p @ 30 */
+			<0x6 0x2>,
+			<0x7C0 0x3>;
+		qcom,max-hw-load = <352800>; /* 720p @ 30 + 1080p @ 30 */
 		qcom,vidc-iommu-domains {
 			qcom,domain-ns {
 				qcom,vidc-domain-phandle = <&venus_domain_ns>;
@@ -964,6 +964,21 @@
 		qcom,pmic-arb-channel = <0>;
 	};
 
+	i2c@f9924000 { /* BLSP-1 QUP2 */
+		cell-index = <3>;
+		compatible = "qcom,i2c-qup";
+		reg = <0xf9924000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr";
+		interrupts = <0 96 0>;
+		interrupt-names = "qup_err_intr";
+		qcom,i2c-bus-freq = <384000>;
+		qcom,i2c-src-freq = <19200000>;
+		#qcom,master-id = <86>;
+		qcom,scl-gpio = <&msmgpio 7 0>;
+		qcom,sda-gpio = <&msmgpio 6 0>;
+	};
 	i2c@f9925000 { /* BLSP-1 QUP-3 */
 		cell-index = <2>;
 		compatible = "qcom,i2c-qup";
@@ -1002,7 +1017,6 @@
 		interrupts = <0 99 0>;
 		qcom,i2c-bus-freq = <384000>;
 		qcom,i2c-src-freq = <19200000>;
-		qcom,master-id = <86>;
 		qcom,sda-gpio = <&msmgpio 18 0>;
 		qcom,scl-gpio = <&msmgpio 19 0>;
 	};
@@ -1014,45 +1028,39 @@
 		clock-names = "clk-4", "clk-5";
 		qcom,speed0-bin-v0 =
 			<         0 0>,
-			< 384000000 1>,
-			< 787200000 2>,
-			<1190400000 3>;
-		qcom,speed1-bin-v2 =
-			<         0 0>,
-			< 192000000 2>,
-			< 300000000 2>,
 			< 384000000 2>,
 			< 787200000 4>,
-			< 998400000 5>,
-			<1094400000 6>,
-			<1190400000 7>,
-			<1305600000 8>,
-			<1344000000 9>,
-			<1401600000 10>,
-			<1497600000 11>,
-			<1593600000 12>;
+			<1190400000 7>;
 
 		cpu-vdd-supply = <&apc_vreg_corner>;
+	};
+
+	qcom,cpubw {
+		compatible = "qcom,cpubw";
+		qcom,cpu-mem-ports = <1 512>;
+		qcom,bw-tbl =
+			< 1525 /* 200 MHz */ >,
+			< 2441 /* 320 MHz */ >,
+			< 3051 /* 400 MHz */ >,
+			< 4066 /* 533 MHz */ >;
 	};
 
 	qcom,msm-cpufreq@0 {
 		reg = <0 4>;
 		compatible = "qcom,msm-cpufreq";
-		qcom,cpu-mem-ports = <1 512>;
 		qcom,cpufreq-table =
-            		<  192000 1525 /* 200 MHz */ >,
-			<  300000 2441 /* 320 MHz */ >,
-			<  384000 3051 /* 400 MHz */ >,
-			<  600000 3051 /* 400 MHz */ >,
-			<  787200 3051 /* 400 MHz */ >,
-			<  998400 4066 /* 533 MHz */ >,
-			< 1094400 4066 /* 533 MHz */ >,
-			< 1190400 4575 /* 600 MHz */ >,
-			< 1305600 4575 /* 600 MHz */ >,
-			< 1344000 4575 /* 600 MHz */ >,
-			< 1401600 4575 /* 600 MHz */ >,
-			< 1497600 4575 /* 600 MHz */ >,
-			< 1593600 4575 /* 600 MHz */ >;
+			<  300000 1525 >,
+			<  384000 1525 >,
+			<  600000 1525 >,
+			<  787200 3051 >,
+			<  998400 4066 >,
+			< 1094400 4066 >,
+			< 1190400 4066 >,
+			< 1305600 4066 >,
+			< 1344000 4066 >,
+			< 1401600 4066 >,
+			< 1497600 4066 >,
+			< 1593600 4066 >;
 	};
 
 	qcom,ocmem@fdd00000 {

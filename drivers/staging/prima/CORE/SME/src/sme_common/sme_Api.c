@@ -3191,10 +3191,6 @@ eHalStatus sme_RoamDelPMKIDfromCache( tHalHandle hHal, tANI_U8 sessionId, tANI_U
       }
       sme_ReleaseGlobalLock( &pMac->sme );
    }
-   if ( status > 0 ) {
-      status = -1;
-   }
-
    return (status);
 }
 /* ---------------------------------------------------------------------------

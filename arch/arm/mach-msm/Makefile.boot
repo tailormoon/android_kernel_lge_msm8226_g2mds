@@ -100,6 +100,8 @@ endif
 # MSM8226
    zreladdr-$(CONFIG_ARCH_MSM8226)	:= 0x00008000
 ifeq ($(CONFIG_MACH_LGE),y)
+	dtb-y += msm8226-g2m.dtb \
+	
 else # not CONFIG_MACH_LGE
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sim.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-fluid.dtb
@@ -119,6 +121,7 @@ else # not CONFIG_MACH_LGE
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd-skug.dtb
+	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd-skug-pvt.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-skuf.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-skuf.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-xpm.dtb

@@ -9,7 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-	 
 
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -26,9 +25,6 @@
 #include <sound/q6afe-v2.h>
 
 #include "audio_acdb.h"
-#define DEBUG
-
-#define pr_debugx(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
 
 #define TIMEOUT_MS 1000
@@ -42,6 +38,7 @@
 #define ULL_SUPPORTED_SAMPLE_RATE 48000
 #define ULL_MAX_SUPPORTED_CHANNEL 2
 
+#define DEBUG //                                                    
 
 enum {
 	ADM_RX_AUDPROC_CAL,

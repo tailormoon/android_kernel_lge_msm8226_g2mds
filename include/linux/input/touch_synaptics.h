@@ -74,10 +74,6 @@ struct synaptics_ts_fw_info
 
 struct synaptics_ts_data {
 	u8	is_probed;
-	u8  lpwg_mode;
-	u8  double_tap_enable;
-	u8  password_enable;
-	u8  password_tap_count;
 	struct regulator*	regulator_vdd;
 	struct regulator*	regulator_vio;
 	struct i2c_client*	client;

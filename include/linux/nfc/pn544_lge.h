@@ -97,5 +97,5 @@ struct pn544_gpio {
 #define dprintk(fmt, args...) printk(fmt, ##args)
 
 
-#endif /* _PN544_LGE_H_ */
+#endif /*               */
 

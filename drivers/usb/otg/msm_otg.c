@@ -49,12 +49,12 @@
 #include <mach/msm_bus.h>
 #include <mach/rpm-regulator.h>
 
-/* LGE_CHANGE_S: Cable Detection */
+/*                               */
 #ifdef  CONFIG_LGE_PM
 #include    <mach/board_lge.h>
 #include    <linux/power_supply.h>
 #endif
-/* LGE_CHANGE_E */
+/*              */
 
 #ifdef CONFIG_LGE_PM_VZW_FAST_CHG
 extern void set_vzw_usb_charging_state(int state);
@@ -1093,7 +1093,7 @@ static int msm_otg_suspend(struct msm_otg *motg)
 #else
 		msm_hsusb_ldo_enable(motg, USB_PHY_REG_OFF);
 #endif // (defined (CONFIG_MACH_MSM8X10_W3DS_TIM_BR) || defined (CONFIG_MACH_MSM8X10_W3DS_GLOBAL_COM) || defined (CONFIG_MACH_MSM8X10_W3C_VZW))
-#endif // CONFIG_USB_G_LGE_ANDROID
+#endif //                         
 		motg->lpm_flags |= PHY_PWR_COLLAPSED;
 	} else if (motg->caps & ALLOW_PHY_REGULATORS_LPM &&
 			!host_bus_suspend && !device_bus_suspend && !dcp) {
@@ -1200,7 +1200,7 @@ static int msm_otg_resume(struct msm_otg *motg)
 #else
 		msm_hsusb_ldo_enable(motg, USB_PHY_REG_ON);
 #endif // (defined (CONFIG_MACH_MSM8X10_W3DS_TIM_BR) || defined (CONFIG_MACH_MSM8X10_W3DS_GLOBAL_COM) || defined (CONFIG_MACH_MSM8X10_W3C_VZW))
-#endif // CONFIG_USB_G_LGE_ANDROID
+#endif //                         
 		motg->lpm_flags &= ~PHY_PWR_COLLAPSED;
 	} else if (motg->lpm_flags & PHY_REGULATORS_LPM) {
 		msm_hsusb_ldo_enable(motg, USB_PHY_REG_LPM_OFF);
@@ -1379,7 +1379,7 @@ static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 		goto psy_error;
 	}
 
-/* LGE_CHANGE_S: Cable Detect & Current Set */
+/*                                          */
 #ifdef CONFIG_LGE_PM
     if (motg->chg_type == USB_DCP_CHARGER || motg->chg_type == USB_PROPRIETARY_CHARGER ||
 		motg->chg_type == USB_FLOATED_CHARGER){
@@ -1407,7 +1407,7 @@ static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 
 	pr_debug("[LGE] motg->cur_power: %d mA: %d\n", motg->cur_power, mA);
 #endif
-/* LGE_CHANGE_E */
+/*              */
 
 	if (motg->cur_power == 0 && mA > 2) {
 #ifdef CONFIG_LGE_PM
@@ -1475,11 +1475,11 @@ static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 		}
 #endif
 
-        /* LGE_CHANGE_S */
+        /*              */
         /* Below line comes from 'msm_otg_sm_work' because of AC(TA) removal detection*/
         if(mA == 0)
             motg->chg_type = USB_INVALID_CHARGER;
-        /* LGE_CHANGE_E */
+        /*              */
 	}
 	// Suspend Mode
 	else if (motg->cur_power > 0 && (mA == 2)) {
@@ -1586,7 +1586,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 			"Failed notifying %d charger type to PMIC\n",
 							motg->chg_type);
 
-/* LGE_CHANGE_S: Cable Detection */
+/*                               */
 #if defined (CONFIG_LGE_PM) && !defined (CONFIG_MACH_MSM8X10_W3C_VZW)
     if (mA > 2 && lge_pm_get_cable_type() != NO_INIT_CABLE) {
         if (motg->chg_type == USB_SDP_CHARGER)
@@ -1605,7 +1605,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
         }
     }
 #endif
-/* LGE_CHANGE_E */
+/*              */
 
 	if (motg->cur_power == mA)
 		return;
@@ -2523,12 +2523,13 @@ int32_t lge_pm_get_cable_usb_id_adc(struct msm_otg *motg)
 #ifdef CONFIG_ARCH_MSM8610
 			rc = qpnp_vadc_read(motg->vadc_dev,P_MUX3_1_1, &result);
 #else
-#if defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) \
+#if defined(CONFIG_MACH_MSM8226_W7DS_OPEN_CIS)	\
+	|| defined(CONFIG_MACH_MSM8226_W7_OPEN_CIS) \
+	|| defined(CONFIG_MACH_MSM8226_W7_OPEN_EU) \
+	|| defined(CONFIG_MACH_MSM8226_W7_GLOBAL_COM) \
 	|| defined(CONFIG_MACH_MSM8226_W7_GLOBAL_SCA) \
-	|| defined(CONFIG_MACH_MSM8226_W7DS_GLOBAL_COM) \
-	|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_COM) \
-	|| defined(CONFIG_MACH_MSM8226_W7N_GLOBAL_SCA) \
-	|| defined(CONFIG_MACH_MSM8226_W7DSN_GLOBAL_COM)
+	|| defined(CONFIG_MACH_MSM8226_W7DS_GLOBAL_SCA)\
+	|| defined(CONFIG_MACH_MSM8226_W7DS_GLOBAL_COM)
 			if(lge_get_board_revno() == HW_REV_0)
 				rc = qpnp_vadc_read(motg->vadc_dev,P_MUX8_1_1, &result);
 			else
@@ -2846,10 +2847,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 #endif
 
 	pm_runtime_resume(otg->phy->dev);
-
-	if(motg->pm_done)
-		pm_runtime_get_sync(otg->phy->dev);
-
 	pr_debug("%s work\n", otg_state_string(otg->phy->state));
 	switch (otg->phy->state) {
 	case OTG_STATE_UNDEFINED:
@@ -3000,14 +2997,14 @@ static void msm_otg_sm_work(struct work_struct *w)
 			cancel_delayed_work_sync(&motg->chg_work);
 			dcp = (motg->chg_type == USB_DCP_CHARGER);
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
-            /* LGE_CHANGE_S */
+            /*              */
             /* Below line is moved to 'msm_otg_notify_power_supply'
             * for AC(TA) removal detection
             */
             #ifndef CONFIG_LGE_PM
 			motg->chg_type = USB_INVALID_CHARGER;
             #endif
-            /* LGE_CHANGE_E */
+            /*              */
 #if defined (CONFIG_TOUCHSCREEN_ATMEL_S336) || defined (CONFIG_LGE_TOUCHSCREEN_SYNAPTIC)
 			trigger_usb_state_from_otg(0);
 #endif
@@ -3024,16 +3021,19 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 * switch from ACA to PMIC.  Check ID state
 			 * before entering into low power mode.
 			 */
+			if (!msm_otg_read_pmic_id_state(motg)) {
+				pr_debug("process missed ID intr\n");
 #ifdef CONFIG_USB_G_LGE_ANDROID
-			if (pdata->mode != USB_PERIPHERAL) {
-				if (!msm_otg_read_pmic_id_state(motg)) {
-					pr_debug("process missed ID intr\n");
-					clear_bit(ID, &motg->inputs);
-					work = 1;
-					break;
-				}
-			}
+                if (pdata->mode != USB_PERIPHERAL) {
+                    clear_bit(ID, &motg->inputs);
+                }
+#else
+				clear_bit(ID, &motg->inputs);
 #endif
+				work = 1;
+				break;
+			}
+
 #ifdef CONFIG_MACH_MSM8926_X5_VZW /* Detecting Cradle for VZW */
 			if (carkit_get_deskdock()) {
 				carkit_set_deskdock(0);
@@ -3046,7 +3046,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 */
 			pm_runtime_mark_last_busy(otg->phy->dev);
 			pm_runtime_autosuspend(otg->phy->dev);
-			motg->pm_done = 1;
 		}
 		break;
 	case OTG_STATE_B_SRP_INIT:
@@ -5196,7 +5195,6 @@ static int msm_otg_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "OTG runtime resume\n");
 	pm_runtime_get_noresume(dev);
-	motg->pm_done = 0;
 	return msm_otg_resume(motg);
 }
 #endif
@@ -5223,7 +5221,6 @@ static int msm_otg_pm_resume(struct device *dev)
 	struct msm_otg *motg = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "OTG PM resume\n");
-	motg->pm_done = 0;
 
 	atomic_set(&motg->pm_suspended, 0);
 	if (motg->async_int || motg->sm_work_pending) {

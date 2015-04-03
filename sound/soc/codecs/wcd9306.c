@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -515,11 +515,11 @@ static int tapan_put_anc_func(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the Ear PA Gain Table, because UCM off-line tunning [Start]
+/*                                                   
+                                                                     
  */
 
-#if defined(CONFIG_MACH_LGE) // LGE Code // referenced from WCD9320 setting
+#if defined(CONFIG_MACH_LGE) //                                            
 static int tapan_pa_gain_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -557,31 +557,41 @@ static int tapan_pa_gain_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	u8 ear_pa_gain;
+	int rc = 0;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
 	ear_pa_gain = snd_soc_read(codec, TAPAN_A_RX_EAR_GAIN);
-
 	ear_pa_gain = ear_pa_gain >> 5;
 
-	if (ear_pa_gain == 0x00) {
-		ucontrol->value.integer.value[0] = 0;
-	} else if (ear_pa_gain == 0x04) {
-		ucontrol->value.integer.value[0] = 1;
-	} else  {
+	switch (ear_pa_gain) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		ucontrol->value.integer.value[0] = ear_pa_gain;
+		break;
+	case 7:
+		ucontrol->value.integer.value[0] = (ear_pa_gain - 1);
+		break;
+	default:
+		rc = -EINVAL;
 		pr_err("%s: ERROR: Unsupported Ear Gain = 0x%x\n",
-				__func__, ear_pa_gain);
-		return -EINVAL;
+		       __func__, ear_pa_gain);
+		break;
 	}
 
 	dev_dbg(codec->dev, "%s: ear_pa_gain = 0x%x\n", __func__, ear_pa_gain);
 
-	return 0;
+	return rc;
 }
 
 static int tapan_pa_gain_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	u8 ear_pa_gain;
+	int rc = 0;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
 	dev_dbg(codec->dev, "%s: ucontrol->value.integer.value[0]  = %ld\n",
@@ -589,21 +599,28 @@ static int tapan_pa_gain_put(struct snd_kcontrol *kcontrol,
 
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
-		ear_pa_gain = 0x00;
-		break;
 	case 1:
-		ear_pa_gain = 0x80;
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		ear_pa_gain = ucontrol->value.integer.value[0];
+		break;
+	case 6:
+		ear_pa_gain = 0x07;
 		break;
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
+		break;
 	}
-
-	snd_soc_update_bits(codec, TAPAN_A_RX_EAR_GAIN, 0xE0, ear_pa_gain);
-	return 0;
+	if (!rc)
+		snd_soc_update_bits(codec, TAPAN_A_RX_EAR_GAIN,
+				    0xE0, ear_pa_gain << 5);
+	return rc;
 }
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the Ear PA Gain Table, because UCM off-line tunning [End]
+/*                                                   
+                                                                   
  */
 
 static int tapan_get_iir_enable_audio_mixer(
@@ -1064,8 +1081,13 @@ static int tapan_config_compander(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the Ear PA Gain Table, because UCM off-line tunning [Start]
+/* Quarx: We need iT?
+static const char * const tapan_ear_pa_gain_text[] = {"POS_6_DB", "POS_4P5_DB",
+						      "POS_3_DB", "POS_1P5_DB",
+						      "POS_0_DB", "NEG_2P5_DB",
+						      "NEG_12_DB"};
+
+                                                               
  */
  #if defined(CONFIG_MACH_LGE)
 static const char * const tapan_ear_pa_gain_text[] = {"POS_6_DB", "POS_4P5_DB", "POS_3_DB", "POS_1P5_DB","POS_0_DB"};
@@ -1075,11 +1097,12 @@ static const struct soc_enum tapan_ear_pa_gain_enum[] = {
  #else
 static const char * const tapan_ear_pa_gain_text[] = {"POS_6_DB", "POS_2_DB"};
 static const struct soc_enum tapan_ear_pa_gain_enum[] = {
-		SOC_ENUM_SINGLE_EXT(2, tapan_ear_pa_gain_text),
+		SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tapan_ear_pa_gain_text),
+				    tapan_ear_pa_gain_text),
 };
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the Ear PA Gain Table, because UCM off-line tunning [End]
+/*                                                   
+                                                                   
  */
 
 static const char *const tapan_anc_func_text[] = {"OFF", "ON"};
@@ -1148,10 +1171,10 @@ static const struct snd_kcontrol_new tapan_common_snd_controls[] = {
 
 	SOC_ENUM_EXT("EAR PA Gain", tapan_ear_pa_gain_enum[0],
 		tapan_pa_gain_get, tapan_pa_gain_put),
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the max value 14 -> 20, because UCM off-line tunning [Start]
+/*                                                   
+                                                                      
  */
-#if defined(CONFIG_MACH_LGE) //LGE Code
+#if defined(CONFIG_MACH_LGE) //        
 	SOC_SINGLE_TLV("HPHL Volume", TAPAN_A_RX_HPH_L_GAIN, 0, 20, 1,
 		line_gain),
 	SOC_SINGLE_TLV("HPHR Volume", TAPAN_A_RX_HPH_R_GAIN, 0, 20, 1,
@@ -1169,32 +1192,33 @@ static const struct snd_kcontrol_new tapan_common_snd_controls[] = {
 		line_gain),
 	SOC_SINGLE_TLV("LINEOUT2 Volume", TAPAN_A_RX_LINE_2_GAIN, 0, 14, 1,
 		line_gain),
+	SOC_SINGLE_TLV("SPK DRV Volume", TAPAN_A_SPKR_DRV_GAIN, 3, 8, 1,
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the max value 14 -> 20, because UCM off-line tunning [End]
+/*                                                   
+                                                                    
  */
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the max value 7 -> 8, because UCM off-line tunning [Start]
+/*                                                   
+                                                                    
  */
-#if defined(CONFIG_MACH_LGE) //LGE Code
+#if defined(CONFIG_MACH_LGE) //        
 	SOC_SINGLE_TLV("SPK DRV Volume", TAPAN_A_SPKR_DRV_GAIN, 3, 8, 1,
 		line_gain),
 #else //qct org
 	SOC_SINGLE_TLV("SPK DRV Volume", TAPAN_A_SPKR_DRV_GAIN, 3, 7, 1,
 		line_gain),
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the max value 7 -> 8, because UCM off-line tunning [End]
+/*                                                   
+                                                                  
  */
 
 	SOC_SINGLE_TLV("ADC1 Volume", TAPAN_A_TX_1_EN, 2, 19, 0, analog_gain),
 	SOC_SINGLE_TLV("ADC2 Volume", TAPAN_A_TX_2_EN, 2, 19, 0, analog_gain),
 	SOC_SINGLE_TLV("ADC3 Volume", TAPAN_A_TX_3_EN, 2, 19, 0, analog_gain),
 	SOC_SINGLE_TLV("ADC4 Volume", TAPAN_A_TX_4_EN, 2, 19, 0, analog_gain),
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the digital_gain's Min value -84 -> -60, because UCM off-line tunning [Start]
+/*                                                   
+                                                                                       
  */ 
-#if defined(CONFIG_MACH_LGE) //LGE Code
+#if defined(CONFIG_MACH_LGE) //        
 	SOC_SINGLE_S8_TLV("RX1 Digital Volume", TAPAN_A_CDC_RX1_VOL_CTL_B2_CTL,
 		-60, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("RX2 Digital Volume", TAPAN_A_CDC_RX2_VOL_CTL_B2_CTL,
@@ -1237,8 +1261,8 @@ static const struct snd_kcontrol_new tapan_common_snd_controls[] = {
 	SOC_SINGLE_S8_TLV("IIR1 INP4 Volume", TAPAN_A_CDC_IIR1_GAIN_B4_CTL, -84,
 		40, digital_gain),
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the digital_gain's Min value -84 -> -60, because UCM off-line tunning [End]
+/*                                                   
+                                                                                     
  */ 
 
 
@@ -1311,10 +1335,10 @@ static const struct snd_kcontrol_new tapan_common_snd_controls[] = {
 static const struct snd_kcontrol_new tapan_9306_snd_controls[] = {
 	SOC_SINGLE_TLV("ADC5 Volume", TAPAN_A_TX_5_EN, 2, 19, 0, analog_gain),
 
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the digital_gain's Min value -84 -> -60, because UCM off-line tunning [Start]
+/*                                                   
+                                                                                       
  */ 
-#if defined(CONFIG_MACH_LGE) //LGE Code
+#if defined(CONFIG_MACH_LGE) //        
 	SOC_SINGLE_S8_TLV("RX4 Digital Volume", TAPAN_A_CDC_RX4_VOL_CTL_B2_CTL,
 		-60, 40, digital_gain),
 	SOC_SINGLE_S8_TLV("DEC3 Volume", TAPAN_A_CDC_TX3_VOL_CTL_GAIN, -60, 40,
@@ -1329,8 +1353,8 @@ static const struct snd_kcontrol_new tapan_9306_snd_controls[] = {
 	SOC_SINGLE_S8_TLV("DEC4 Volume", TAPAN_A_CDC_TX4_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
 #endif
-/* LGE_CHANGED_START 2013.06.19, seungkyu.joo@lge.com
- * change the digital_gain's Min value -84 -> -60, because UCM off-line tunning [End]
+/*                                                   
+                                                                                     
  */ 
 	SOC_SINGLE_EXT("ANC Slot", SND_SOC_NOPM, 0, 100, 0, tapan_get_anc_slot,
 		tapan_put_anc_slot),
@@ -2000,7 +2024,7 @@ static int tapan_codec_enable_adc(struct snd_soc_dapm_widget *w,
 		if (w->reg == TAPAN_A_TX_3_EN ||
 		    w->reg == TAPAN_A_TX_1_EN)
 			wcd9xxx_resmgr_notifier_call(&tapan->resmgr,
-						WCD9XXX_EVENT_PRE_TX_3_ON);
+						WCD9XXX_EVENT_PRE_TX_1_3_ON);
 		snd_soc_update_bits(codec, adc_reg, 1 << init_bit_shift,
 				1 << init_bit_shift);
 		break;
@@ -2013,7 +2037,7 @@ static int tapan_codec_enable_adc(struct snd_soc_dapm_widget *w,
 		if (w->reg == TAPAN_A_TX_3_EN ||
 		    w->reg == TAPAN_A_TX_1_EN)
 			wcd9xxx_resmgr_notifier_call(&tapan->resmgr,
-						WCD9XXX_EVENT_POST_TX_3_OFF);
+						WCD9XXX_EVENT_POST_TX_1_3_OFF);
 		break;
 	}
 	return 0;
@@ -2339,10 +2363,11 @@ static int tapan_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 
 		if (micb_ctl_reg == TAPAN_A_MICB_2_CTL) {
 			if (++tapan->micb_2_users == 1)
-				snd_soc_update_bits(codec, micb_ctl_reg,
-						1 << w->shift,
-						1 << w->shift);
-
+				wcd9xxx_resmgr_add_cond_update_bits(
+						&tapan->resmgr,
+						WCD9XXX_COND_HPH_MIC,
+						micb_ctl_reg, w->shift,
+						false);
 			pr_debug("%s: micb_2_users %d\n", __func__,
 				 tapan->micb_2_users);
 		} else
@@ -2359,10 +2384,11 @@ static int tapan_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		if (micb_ctl_reg == TAPAN_A_MICB_2_CTL) {
 			if (--tapan->micb_2_users == 0)
-						snd_soc_update_bits(codec, micb_ctl_reg,
-							1 << w->shift,
-							0);
-
+				wcd9xxx_resmgr_rm_cond_update_bits(
+						&tapan->resmgr,
+						WCD9XXX_COND_HPH_MIC,
+						micb_ctl_reg, 7,
+						false);
 			pr_debug("%s: micb_2_users %d\n", __func__,
 				 tapan->micb_2_users);
 			WARN(tapan->micb_2_users < 0,
@@ -3419,7 +3445,7 @@ static void tapan_shutdown(struct snd_pcm_substream *substream,
 	dev_dbg(dai->codec->dev, "%s(): substream = %s  stream = %d\n",
 		 __func__, substream->name, substream->stream);
 
-	if (dai->id < NUM_CODEC_DAIS) { //LGE_UPDATE 2013-12-06 WBT issue(TD538542)
+	if (dai->id < NUM_CODEC_DAIS) { //                                         
 		if (tapan->dai[dai->id].ch_mask) {
 			active = 1;
 			dev_dbg(dai->codec->dev, "%s(): Codec DAI: chmask[%d] = 0x%lx\n",
@@ -4622,7 +4648,7 @@ static const struct snd_soc_dapm_widget tapan_common_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("RX3 MIX1 INP2", SND_SOC_NOPM, 0, 0,
 		&rx3_mix1_inp2_mux),
 		
-	#if 0 // [LGE] 2013-12-02 hj74.kim : do not use
+	#if 0 //                                       
 	//SND_SOC_DAPM_MUX("RX3 MIX1 INP3", SND_SOC_NOPM, 0, 0,
 		//&rx3_mix1_inp2_mux),
 	#endif

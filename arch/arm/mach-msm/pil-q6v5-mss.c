@@ -261,11 +261,6 @@ static irqreturn_t modem_wdog_bite_intr_handler(int irq, void *dev_id)
 	}
 	/* END : subsys_modem_restart : testmode */
 
-	if (check_modem_reset(drv) == 0) {
-		pr_err("IGNORE watchdog bite received from modem software during check_modem_reset!\n");		
-		return IRQ_HANDLED;
-	}
-
 	pr_err("Watchdog bite received from modem software!\n");
 	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);

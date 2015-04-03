@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,7 +51,8 @@ enum mdss_mdp_wb_node_state {
 	REGISTERED,
 	IN_FREE_QUEUE,
 	IN_BUSY_QUEUE,
-	WITH_CLIENT
+	WITH_CLIENT,
+	WB_BUFFER_READY,
 };
 
 struct mdss_mdp_wb_data {
@@ -310,11 +311,6 @@ static int mdss_mdp_wb_start(struct msm_fb_data_type *mfd)
 		return -ENODEV;
 	}
 
-#if defined(CONFIG_MACH_MSM8926_X5_VZW) || defined(CONFIG_MACH_MSM8926_X5_SPR)
-	//change request number of writeback path for memory to normal value
-	change_wb_block_request_num_to_high();
-#endif
-
 	mutex_lock(&wb->lock);
 	wb->state = WB_START;
 	mutex_unlock(&wb->lock);
@@ -331,11 +327,6 @@ static int mdss_mdp_wb_stop(struct msm_fb_data_type *mfd)
 		pr_err("unable to stop, writeback is not initialized\n");
 		return -ENODEV;
 	}
-
-#if defined(CONFIG_MACH_MSM8926_X5_VZW) || defined(CONFIG_MACH_MSM8926_X5_SPR)
-	//change request number of writeback path for memory to low value
-        change_wb_block_request_num_to_low();
-#endif
 
 	mutex_lock(&wb->lock);
 	wb->state = WB_STOPING;
@@ -448,6 +439,7 @@ static int mdss_mdp_wb_queue(struct msm_fb_data_type *mfd,
 {
 	struct mdss_mdp_wb *wb = mfd_to_wb(mfd);
 	struct mdss_mdp_wb_data *node = NULL;
+	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 	int ret = 0;
 
 	if (!wb) {
@@ -457,19 +449,46 @@ static int mdss_mdp_wb_queue(struct msm_fb_data_type *mfd,
 
 	pr_debug("fb%d queue\n", wb->fb_ndx);
 
+	if (!mfd->panel_info->cont_splash_enabled)
+		mdss_iommu_attach(mdp5_data->mdata);
+
 	mutex_lock(&wb->lock);
 	if (local)
 		node = get_local_node(wb, data);
 	if (node == NULL)
 		node = get_user_node(mfd, data);
 
-	if (!node || node->state == IN_BUSY_QUEUE ||
-	    node->state == IN_FREE_QUEUE) {
-		pr_err("memory not registered or Buffer already with us\n");
-		ret = -EINVAL;
+	if (!node) {
+		pr_err("memory not registered\n");
+		ret = -ENOENT;
 	} else {
-		list_add_tail(&node->active_entry, &wb->free_queue);
-		node->state = IN_FREE_QUEUE;
+		struct mdss_mdp_img_data *buf = &node->buf_data.p[0];
+
+		switch (node->state) {
+		case IN_FREE_QUEUE:
+			pr_err("node 0x%pa was already queueued before\n",
+					&buf->addr);
+			ret = -EINVAL;
+			break;
+		case IN_BUSY_QUEUE:
+			pr_err("node 0x%pa still in busy state\n", &buf->addr);
+			ret = -EBUSY;
+			break;
+		case WB_BUFFER_READY:
+			pr_debug("node 0x%pa re-queueded without dequeue\n",
+				&buf->addr);
+			list_del(&node->active_entry);
+		case WITH_CLIENT:
+		case REGISTERED:
+			list_add_tail(&node->active_entry, &wb->free_queue);
+			node->state = IN_FREE_QUEUE;
+			break;
+		default:
+			pr_err("Invalid node 0x%pa state %d\n",
+				&buf->addr, node->state);
+			ret = -EINVAL;
+			break;
+		}
 	}
 	mutex_unlock(&wb->lock);
 
@@ -539,6 +558,8 @@ int mdss_mdp_wb_kickoff(struct msm_fb_data_type *mfd)
 	if (!ctl->power_on)
 		return 0;
 
+	memset(&wb_args, 0, sizeof(wb_args));
+
 	mutex_lock(&mdss_mdp_wb_buf_lock);
 	if (wb) {
 		mutex_lock(&wb->lock);
@@ -579,6 +600,7 @@ int mdss_mdp_wb_kickoff(struct msm_fb_data_type *mfd)
 	if (wb && node) {
 		mutex_lock(&wb->lock);
 		list_add_tail(&node->active_entry, &wb->busy_queue);
+		node->state = WB_BUFFER_READY;
 		mutex_unlock(&wb->lock);
 		wake_up(&wb->wait_q);
 	}
@@ -841,3 +863,21 @@ int msm_fb_writeback_set_secure(struct fb_info *info, int enable)
 }
 EXPORT_SYMBOL(msm_fb_writeback_set_secure);
 
+/**
+ * msm_fb_writeback_iommu_ref() - Power ON/OFF mdp clock
+ * @enable - true/false to Power ON/OFF mdp clock
+ *
+ * Call to enable mdp clock at start of mdp_mmap/mdp_munmap API and
+ * to disable mdp clock at end of these API's to ensure iommu is in
+ * proper state while driver map/un-map any buffers.
+ */
+int msm_fb_writeback_iommu_ref(struct fb_info *info, int enable)
+{
+	if (enable)
+		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+	else
+		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
+
+	return 0;
+}
+EXPORT_SYMBOL(msm_fb_writeback_iommu_ref);

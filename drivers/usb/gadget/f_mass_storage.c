@@ -314,9 +314,9 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define FSG_NO_INTR_EP           1
 
 #ifdef CONFIG_USB_G_LGE_ANDROID_AUTORUN
-/* Belows are LGE-customized SCSI cmd and
- * sub-cmd for autorun processing.
- * 2011-03-09, hyunhui.park@lge.com
+/*                                       
+                                  
+                                   
  */
 #define SC_LGE_SPE              0xF1
 #define SUB_CODE_MODE_CHANGE    0x01
@@ -351,7 +351,7 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define SUB_ACK_STATUS_CGO      0x04
 #define SUB_ACK_STATUS_TET      0x05
 #define SUB_ACK_STATUS_PTP      0x06
-#endif /* CONFIG_USB_G_LGE_ANDROID_AUTORUN */
+#endif /*                                  */
 
 #include "storage_common.c"
 
@@ -365,9 +365,9 @@ struct fsg_dev;
 struct fsg_common;
 
 #ifdef CONFIG_USB_G_LGE_ANDROID_AUTORUN
-/* Belows are uevent string to communicate with
- * android framework and application.
- * 2011-03-09, hyunhui.park@lge.com
+/*                                             
+                                     
+                                   
  */
 static char *envp_ack[2] = {"AUTORUN=ACK", NULL};
 
@@ -520,7 +520,7 @@ struct fsg_common {
 	char inquiry_string[8 + 16 + 4 + 1];
 
 #ifdef CONFIG_USB_G_LGE_ANDROID_AUTORUN
-	/* LGE-customized USB mode */
+	/*                         */
 	enum chg_mode_state mode_state;
 #endif
 
@@ -632,6 +632,7 @@ static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
 /* Caller must hold fsg->lock */
 static void wakeup_thread(struct fsg_common *common)
 {
+	smp_wmb();	/* ensure the write of bh->state is complete */
 	/* Tell the main thread that something has happened */
 	common->thread_wakeup_needed = 1;
 	if (common->thread_task)
@@ -1438,8 +1439,8 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 }
 
 #ifdef CONFIG_USB_G_LGE_ANDROID_AUTORUN
-/* Add function which handles LGE-customized command from PC.
- * 2011-03-09, hyunhui.park@lge.com
+/*                                                           
+                                   
  */
 static int do_ack_status(struct fsg_common *common, struct fsg_buffhd *bh, u8 ack)
 {
@@ -2493,7 +2494,7 @@ static int do_scsi_command(struct fsg_common *common)
 			break;
 		} /* switch (common->cmnd[1]) */
 		break;
-#endif /* CONFIG_USB_G_LGE_ANDROID_AUTORUN */
+#endif /*                                  */
 
 	case MODE_SELECT:
 		common->data_size_from_cmnd = common->cmnd[4];
@@ -3302,6 +3303,7 @@ static ssize_t fsg_store_usbmode(struct device *dev,
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
 static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
+static DEVICE_ATTR(cdrom, 0644, fsg_show_cdrom, fsg_store_cdrom);
 #ifdef CONFIG_USB_MSC_PROFILING
 static DEVICE_ATTR(perf, 0644, fsg_show_perf, fsg_store_perf);
 #endif
@@ -3433,6 +3435,9 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		if (rc)
 			goto error_luns;
 		rc = device_create_file(&curlun->dev, &dev_attr_nofua);
+		if (rc)
+			goto error_luns;
+		rc = device_create_file(&curlun->dev, &dev_attr_cdrom);
 		if (rc)
 			goto error_luns;
 #ifdef CONFIG_USB_MSC_PROFILING
@@ -3591,6 +3596,7 @@ static void fsg_common_release(struct kref *ref)
 #ifdef CONFIG_USB_MSC_PROFILING
 			device_remove_file(&lun->dev, &dev_attr_perf);
 #endif
+			device_remove_file(&lun->dev, &dev_attr_cdrom);
 			device_remove_file(&lun->dev, &dev_attr_nofua);
 			device_remove_file(&lun->dev, &dev_attr_ro);
 			device_remove_file(&lun->dev, &dev_attr_file);

@@ -761,6 +761,18 @@ static int32_t msm_sensor_get_dt_data(struct device_node *of_node,
 		goto ERROR1;
 	}
 
+/* LGE_CHANGE_S, Fix for Dual Camera Module of HI707, 2014-03-04, dongsu.bag@lge.com */
+	rc = of_property_read_u32(of_node, "qcom,maker-gpio",
+		&sensordata->sensor_init_params->maker_gpio);
+	CDBG("%s qcom,maker-gpio %d, rc %d\n", __func__,
+		sensordata->sensor_init_params->maker_gpio, rc);
+	if (rc < 0) {
+		/* Set default maker-gpio */
+		sensordata->sensor_init_params->maker_gpio = -1;
+		rc = 0;
+	}
+/* LGE_CHANGE_E, Fix for Dual Camera Module of HI707, 2014-03-04, dongsu.bag@lge.com */
+
 	rc = of_property_read_u32(of_node, "qcom,mount-angle",
 		&sensordata->sensor_init_params->sensor_mount_angle);
 	CDBG("%s qcom,mount-angle %d, rc %d\n", __func__,
@@ -1459,6 +1471,42 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		kfree(reg_setting);
 		break;
 	}
+	//for IMX219 Bank Register, 2014-02-06 younjung.park@lge.com
+
+	case CFG_READ_I2C_ARRAY_LG:{
+		#if 1
+		struct msm_camera_i2c_reg_setting reg_setting;
+		uint16_t local_data = 0;
+		uint16_t read_bank_addr = 0;
+			if (copy_from_user(&reg_setting,
+				(void *)cdata->cfg.setting,
+				sizeof(struct msm_camera_i2c_reg_setting))) {
+				pr_err("%s:%d failed\n", __func__, __LINE__);
+				rc = -EFAULT;
+				break;
+			}
+			read_bank_addr = reg_setting.reg_setting->reg_addr;
+
+			pr_err("%s:CFG_Bank_READ_I2C:", __func__);
+			pr_err("reg_addr=0x%x, reg_data=0x%x\n", reg_setting.reg_setting->reg_addr, reg_setting.reg_setting->reg_data);
+
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+					s_ctrl->sensor_i2c_client,
+					read_bank_addr,
+					&local_data, reg_setting.data_type);
+			if (rc < 0) {
+				pr_err("%s:%d: i2c_read failed\n", __func__, __LINE__);
+				break;
+			}
+			pr_err("[B2MINI] %s bank %d\n", __func__, local_data);
+			if (copy_to_user((void *)reg_setting.value, &local_data, sizeof(uint16_t))) {
+				pr_err("%s:%d copy failed\n", __func__, __LINE__);
+				rc = -EFAULT;
+				break;
+			}
+		#endif
+			break;
+		}
 	case CFG_SLAVE_READ_I2C: {
 		struct msm_camera_i2c_read_config read_config;
 		uint16_t local_data = 0;
@@ -1810,6 +1858,25 @@ static struct msm_camera_i2c_fn_t msm_sensor_qup_func_tbl = {
 	.i2c_write_conf_tbl = msm_camera_qup_i2c_write_conf_tbl,
 };
 
+static int device_is_d415;
+
+static int __init device_model_name(char *s)
+{
+       if (s == NULL) {
+               device_is_d415 = 0;
+               return 1;
+       }
+
+       if (!strcmp(s,"LG-D415") || !strcmp(s,"LG-D405")) {
+               device_is_d415 = 1;
+       } else {
+               device_is_d415 = 0;
+       }
+
+       return 1;
+}
+__setup("model.name=", device_model_name);
+
 int32_t msm_sensor_platform_probe(struct platform_device *pdev, void *data)
 {
 	int32_t rc = 0;
@@ -1818,11 +1885,26 @@ int32_t msm_sensor_platform_probe(struct platform_device *pdev, void *data)
 	struct msm_camera_cci_client *cci_client = NULL;
 	uint32_t session_id;
 	unsigned long mount_pos;
-
+	const char *sensor_name;
 	s_ctrl->pdev = pdev;
 	s_ctrl->dev = &pdev->dev;
-	CDBG("%s called data %p\n", __func__, data);
-	CDBG("%s pdev name %s\n", __func__, pdev->id_entry->name);
+	//printk("%s called data %p\n", __func__, data);
+	///printk("%s pdev name %s\n", __func__, data->compatible);
+
+	rc = of_property_read_string(pdev->dev.of_node, "compatible", &sensor_name);
+	printk("%s pdev name %s: %s\n", __func__,pdev->dev.of_node->name, sensor_name);
+/*
+	if (!strcmp(sensor_name, "qcom,hi707"))
+	{
+		if (!device_is_d415) {
+			printk("%s D405: pdev name %s: %s\n", __func__,pdev->dev.of_node->name, sensor_name);
+			pdev->dev.of_node = of_find_node_by_path("/soc/qcom,cci@fda0c000/qcom,camera_rev_c@60");
+		} else {
+			printk("%s D410 pdev name %s: %s\n", __func__,pdev->dev.of_node->name, sensor_name);
+			pdev->dev.of_node = of_find_node_by_path("/soc/qcom,cci@fda0c000/qcom,camera_rev_d@60");
+		}
+	}
+*/
 	if (pdev->dev.of_node) {
 		rc = msm_sensor_get_dt_data(pdev->dev.of_node, s_ctrl);
 		if (rc < 0) {

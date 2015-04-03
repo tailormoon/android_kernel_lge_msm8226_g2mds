@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -69,6 +69,13 @@ enum {
 	MODE_GPIO_NOT_VALID = 0,
 	MODE_GPIO_HIGH,
 	MODE_GPIO_LOW,
+};
+
+struct mdss_rect {
+	u16 x;
+	u16 y;
+	u16 w;
+	u16 h;
 };
 
 #define MDSS_MAX_PANEL_LEN      256
@@ -227,9 +234,14 @@ struct mipi_panel_info {
 	u32  init_delay;
 };
 
+struct edp_panel_info {
+	char frame_rate;	/* fps */
+};
+
 enum dynamic_fps_update {
 	DFPS_SUSPEND_RESUME_MODE,
 	DFPS_IMMEDIATE_CLK_UPDATE_MODE,
+	DFPS_IMMEDIATE_PORCH_UPDATE_MODE,
 };
 
 enum lvds_mode {
@@ -272,6 +284,7 @@ struct mdss_panel_info {
 	u32 type;
 	u32 wait_cycle;
 	u32 pdest;
+	u32 brightness_max;
 	u32 bl_max;
 	u32 bl_min;
 	u32 fb_num;
@@ -305,9 +318,11 @@ struct mdss_panel_info {
 	uint32_t panel_dead;
 
 	struct lcd_panel_info lcdc;
+	struct lcd_panel_info lcdc_tune;
 	struct fbc_panel_info fbc;
 	struct mipi_panel_info mipi;
 	struct lvds_panel_info lvds;
+	struct edp_panel_info edp;
 };
 
 struct mdss_panel_data {
@@ -348,6 +363,9 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
 	case MIPI_CMD_PANEL:
 		frame_rate = panel_info->mipi.frame_rate;
 		break;
+	case EDP_PANEL:
+		frame_rate = panel_info->edp.frame_rate;
+		break;
 	case WRITEBACK_PANEL:
 		frame_rate = DEFAULT_FRAME_RATE;
 		break;
@@ -371,6 +389,36 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
 }
 
 /*
+ * mdss_rect_cmp() - compares two rects
+ * @rect1 - rect value to compare
+ * @rect2 - rect value to compare
+ *
+ * Returns 1 if the rects are same, 0 otherwise.
+ */
+static inline int mdss_rect_cmp(struct mdss_rect *rect1,
+		struct mdss_rect *rect2) {
+	return (rect1->x == rect2->x && rect1->y == rect2->y &&
+		rect1->w == rect2->w && rect1->h == rect2->h);
+}
+
+/*
+ * mdss_panel_get_vtotal_lcd() - return panel vertical height
+ * @pinfo:	Pointer to panel info containing all panel information
+ * @lcd:	Pointer to lcdc panel info with timings
+ *
+ * Returns the total height of the panel including any blanking regions
+ * which are not visible to user but used to calculate panel pixel clock.
+ * The caller may specify an alternate set of lcd timings.
+ */
+static inline int mdss_panel_get_vtotal_lcd(struct mdss_panel_info *pinfo,
+	struct lcd_panel_info *lcd)
+{
+	return pinfo->yres + lcd->v_back_porch +
+			lcd->v_front_porch +
+			lcd->v_pulse_width;
+}
+
+/*
  * mdss_panel_get_vtotal() - return panel vertical height
  * @pinfo:	Pointer to panel info containing all panel information
  *
@@ -379,9 +427,7 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
  */
 static inline int mdss_panel_get_vtotal(struct mdss_panel_info *pinfo)
 {
-	return pinfo->yres + pinfo->lcdc.v_back_porch +
-			pinfo->lcdc.v_front_porch +
-			pinfo->lcdc.v_pulse_width;
+	return mdss_panel_get_vtotal_lcd(pinfo, &pinfo->lcdc);
 }
 
 /*

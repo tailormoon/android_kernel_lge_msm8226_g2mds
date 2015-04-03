@@ -80,7 +80,7 @@ static int dload_set(const char *val, struct kernel_param *kp);
 #ifdef CONFIG_MACH_MSM8X10_W3C_TRF_US
 static int download_mode = 0;
 #else
-static int download_mode = 1;
+static int download_mode = 0;
 #endif
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
@@ -122,6 +122,10 @@ static void enable_emergency_dload_mode(void)
 		__raw_writel(EMERGENCY_DLOAD_MAGIC3,
 				emergency_dload_mode_addr +
 				(2 * sizeof(unsigned int)));
+
+		/* Need disable the pmic wdt, then the emergency dload mode
+		 * will not auto reset. */
+		qpnp_pon_wd_config(0);
 		mb();
 	}
 }
@@ -291,16 +295,15 @@ static void msm_restart_prepare(const char *cmd)
 			__raw_writel(0x77665500, restart_reason);
 		} else if (!strncmp(cmd, "recovery", 8)) {
 			__raw_writel(0x77665502, restart_reason);
-#ifdef CONFIG_LGE_SLATE
-		} else if (!strncmp(cmd, "adbrecovery", 11)) {
-			__raw_writel(0x77665511, restart_reason);
-#endif // CONFIG_LGE_SLATE
-
+		} else if (!strcmp(cmd, "rtc")) {
+			__raw_writel(0x77665503, restart_reason);           
 #ifdef CONFIG_LGE_BNR_RECOVERY_REBOOT
 			/* PC Sync B&R : Add restart reason */
 		} else if (!strncmp(cmd, "--bnr_recovery", 14)) {
 			__raw_writel(0x77665555, restart_reason);
 #endif
+		} else if (!strncmp(cmd, "laf", 14)) {
+			restart_mode = RESTART_DLOAD;
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;

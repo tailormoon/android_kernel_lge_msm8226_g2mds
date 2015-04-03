@@ -99,14 +99,15 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.insert_detect = true,
 	.swap_gnd_mic = NULL,
 	.use_int_rbias = false,
-	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
+	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET |
+				1 << MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
 	.cs_enable_flags = (1 << MBHC_CS_ENABLE_POLLING |
 			    1 << MBHC_CS_ENABLE_INSERTION |
 			    1 << MBHC_CS_ENABLE_REMOVAL),
 	.do_recalibration = false,
 	.use_vddio_meas = false,
 };
-#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //LGE_UPDATE 20130626 beekay.lee@lge.com WX_MAXIM
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
 extern bool maxim_enabled;
 #endif
 
@@ -627,7 +628,7 @@ static void *def_msm8x10_wcd_mbhc_cal(void)
 	btn_high[6] = 244;
 	btn_low[7] = 245;
 	btn_high[7] = 330;
-#else	/* Calibrated Button range by LGE */
+#else	/*                                */
 	btn_low[0] = -50;
 	btn_high[0] = 150;	/* Hook Key */
 	btn_low[1] = 151;
@@ -1116,7 +1117,7 @@ static __devinit int msm8x10_asoc_machine_probe(struct platform_device *pdev)
 			ret);
 		goto err1;
 	}
-#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //LGE_UPDATE 20130626 beekay.lee@lge.com WX_MAXIM
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
 	if(maxim_enabled) {
 		mbhc_cfg.insert_detect = false;
 		pr_info("%s: mbhc disable\n", __func__);

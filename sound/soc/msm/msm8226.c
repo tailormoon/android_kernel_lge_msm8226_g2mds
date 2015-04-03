@@ -74,7 +74,7 @@ static const struct soc_enum msm8226_auxpcm_enum[] = {
 #define I2S_PCM_SEL 1
 #define I2S_PCM_SEL_OFFSET 1
 
-#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //LGE_UPDATE 20130626 beekay.lee@lge.com WX_MAXIM
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
 extern bool maxim_enabled;
 #endif
 
@@ -368,7 +368,7 @@ static const struct snd_soc_dapm_widget msm8226_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-    SND_SOC_DAPM_MIC("Handset SubMic", NULL), // LGE, 2013-06-24, seungkyu.joo@lge.com, enable Mic Bias1 external connected to AMIC3 (submic)
+    SND_SOC_DAPM_MIC("Handset SubMic", NULL), //                                                                                             
     SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("ANCLeft Headset Mic", NULL),
 
@@ -807,32 +807,9 @@ static int msm_be_fm_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-#if 1	//for force crash from user mode
-static int dummy_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	pr_info("%s: \n", __func__);
-	return 0;
-}
-
-static int dummy_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-
-	pr_err("*******************************************************************************************");
-	pr_err("%s: timeout during offload playing. (event isn't received from ADSP within the time)", __func__ ); //LGE_UPDATE error message for debugging
-	pr_err("*******************************************************************************************");
-	return 1;
-}
-#endif  		//for force crash from user mode
-
-
 static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, slim0_rx_ch_text),
 	SOC_ENUM_SINGLE_EXT(4, slim0_tx_ch_text),
-#if 1	//for force crash from user mode
-	SOC_ENUM_SINGLE_EXT(8, proxy_rx_ch_text),
-#endif  		//for force crash from user mode
 	SOC_ENUM_SINGLE_EXT(8, proxy_rx_ch_text),
 };
 
@@ -849,10 +826,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm_proxy_rx_ch_get, msm_proxy_rx_ch_put),
 	SOC_ENUM_EXT("SLIM_0_RX Format", msm_snd_enum[3],
 			slim0_rx_bit_format_get, slim0_rx_bit_format_put),
-#if 1		//for force crash from user mode
-	SOC_ENUM_EXT("Dummy CTL", msm_snd_enum[4],
-			dummy_get, dummy_put),
-#endif  		//for force crash from user mode
 
 };
 
@@ -1069,7 +1042,7 @@ void *def_tapan_mbhc_cal(void)
 #undef S
 #define S(X, Y) ((WCD9XXX_MBHC_CAL_PLUG_TYPE_PTR(tapan_cal)->X) = (Y))
 	S(v_no_mic, 30);
-	S(v_hs_max, 2500); //QCT original : S(v_hs_max, 2450); but change this for wrong HTC Innovation EarJack.
+	S(v_hs_max, 2450);
 #undef S
 #define S(X, Y) ((WCD9XXX_MBHC_CAL_BTN_DET_PTR(tapan_cal)->X) = (Y))
 	S(c[0], 62);
@@ -1107,8 +1080,8 @@ void *def_tapan_mbhc_cal(void)
         btn_high[7] = 500;
 #else
   btn_low[0] = -50;
-  btn_high[0] = 180; // hook
-  btn_low[1] = 181;
+  btn_high[0] = 150; // hook
+  btn_low[1] = 151;
   btn_high[1] = 200;
   btn_low[2] = 201;
   btn_high[2] = 300; // +
@@ -2251,7 +2224,7 @@ static __devinit int msm8226_asoc_machine_probe(struct platform_device *pdev)
 			goto err_vdd_spkr;
 		}
 	}
-#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //LGE_UPDATE 20130626 beekay.lee@lge.com WX_MAXIM
+#if defined(CONFIG_MACH_LGE) && defined(CONFIG_SWITCH_MAX1462X) //                                               
 		if(maxim_enabled) {
 			mbhc_cfg.insert_detect = false;
 			pr_info("%s: mbhc disable\n", __func__);

@@ -177,8 +177,8 @@ int diag_hdlc_decode(struct diag_hdlc_decode_type *hdlc)
 	int msg_start;
 
 	if (hdlc && hdlc->src_ptr && hdlc->dest_ptr &&
-	    (hdlc->src_size - hdlc->src_idx > 0) &&
-	    (hdlc->dest_size - hdlc->dest_idx > 0)) {
+	    (hdlc->src_size > hdlc->src_idx) &&
+	    (hdlc->dest_size > hdlc->dest_idx)) {
 
 		msg_start = (hdlc->src_idx == 0) ? 1 : 0;
 
@@ -207,9 +207,6 @@ int diag_hdlc_decode(struct diag_hdlc_decode_type *hdlc)
 							  ^ ESC_MASK;
 				}
 			} else if (src_byte == CONTROL_CHAR) {
-				if (len == 0) /* LGE CODE for remove first 7E */
-					continue;
-
 				if (msg_start && i == 0 && src_length > 1)
 					continue;
 				/* Byte 0x7E will be considered

@@ -439,8 +439,8 @@ void lge_pm_set_usb_cable_to_minimum(void){
 #ifdef CONFIG_LGE_PM_BATTERY_ID_CHECKER
 
 #if defined(CONFIG_MACH_MSM8926_X5_VZW) || defined(CONFIG_MACH_MSM8926_X3C_TRF_US) || \
-	defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
-	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3_KR)
+	defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
+	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
 int lge_battery_info = BATT_ID_DS2704_N;// BATT_ID_UNKNOWN;
 #else
 int lge_battery_info = BATT_ID_UNKNOWN;
@@ -448,7 +448,7 @@ int lge_battery_info = BATT_ID_UNKNOWN;
 
 bool is_lge_battery_valid(void)
 {
-#ifdef CONFIG_MACH_MSM8926_B1L_ATT  // temp just only Rev 0
+#if defined(CONFIG_MACH_MSM8926_JAGNM_ATT) || defined(CONFIG_MACH_MSM8926_JAGNM_GLOBAL_COM)  // temp just only Rev 0
 	return true;
 #else
 
@@ -476,7 +476,7 @@ bool is_lge_battery_valid(void)
 	return false;
 
 
-#endif //CONFIG_LGE_PM_BATTERY_4_2VOLT
+#endif //                             
 #endif
 }
 //EXPORT_SYMBOL(is_lge_battery_valid);
@@ -603,10 +603,10 @@ enum lge_laf_mode_type lge_get_laf_mode(void)
 static hw_rev_type lge_bd_rev = HW_REV_A;
 
 /* CAUTION: These strings are come from LK. */
-#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
-	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3_KR)
-char *rev_str[] = {"rev_0", "rev_a", "rev_a2", "rev_b", "rev_c",
-	"rev_d", "rev_10", "rev_11", "revserved"};
+#if defined(CONFIG_MACH_MSM8926_X3N_OPEN_EU) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_F70N_GLOBAL_COM) || defined(CONFIG_MACH_MSM8926_X3N_GLOBAL_SCA) || \
+	defined(CONFIG_MACH_MSM8926_X3_TRF_US) || defined(CONFIG_MACH_MSM8926_X3N_KR) || defined(CONFIG_MACH_MSM8926_F70N_KR)
+char *rev_str[] = {"rev_0", "rev_a", "rev_a2", "rev_b", "rev_b2",
+	"rev_c", "rev_10", "rev_11", "revserved"};
 #else
 char *rev_str[] = {"rev_0", "rev_a", "rev_b", "rev_c", "rev_d",
 	"rev_e", "rev_10", "rev_11", "revserved"};
@@ -725,7 +725,7 @@ void __init lge_android_usb_init(void)
 {
     platform_device_register(&lge_android_usb_device);
 }
-#endif /* CONFIG_USB_G_LGE_ANDROID */
+#endif /*                          */
 
 #ifdef CONFIG_LGE_CRASH_FOOTPRINT
 static unsigned long int lge_bootreason = 0;

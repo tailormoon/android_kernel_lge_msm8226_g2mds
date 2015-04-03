@@ -62,7 +62,7 @@ typedef struct
 	_IO(LGE_BROADCAST_DMB_IOCTL_MAGIC, 31)
 
 #define LGE_BROADCAST_DMB_IOCTL_OPEN \
-	_IOW(LGE_BROADCAST_DMB_IOCTL_MAGIC, 32, struct broadcast_dmb_init_info*)
+	_IO(LGE_BROADCAST_DMB_IOCTL_MAGIC, 32)
 
 #define LGE_BROADCAST_DMB_IOCTL_CLOSE \
 	_IO(LGE_BROADCAST_DMB_IOCTL_MAGIC, 33)
@@ -71,10 +71,10 @@ typedef struct
 	_IOW(LGE_BROADCAST_DMB_IOCTL_MAGIC, 35, struct broadcast_dmb_set_ch_info*)
 
 #define LGE_BROADCAST_DMB_IOCTL_RESYNC \
-	_IOW(LGE_BROADCAST_DMB_IOCTL_MAGIC, 36, int*)
+	_IOW(LGE_BROADCAST_DMB_IOCTL_MAGIC, 36, int)
 
 #define LGE_BROADCAST_DMB_IOCTL_DETECT_SYNC \
-	_IOR(LGE_BROADCAST_DMB_IOCTL_MAGIC, 37, struct broadcast_dmb_sync_info*)
+	_IOR(LGE_BROADCAST_DMB_IOCTL_MAGIC, 37, int*)
 
 #define LGE_BROADCAST_DMB_IOCTL_GET_SIG_INFO \
 	_IOR(LGE_BROADCAST_DMB_IOCTL_MAGIC, 38, struct broadcast_dmb_sig_info*)
@@ -98,15 +98,8 @@ typedef struct
 struct broadcast_dmb_set_ch_info
 {
 	unsigned int	mode;
-	unsigned int	rf_band;
-	unsigned int	channel;
-	unsigned int	subchannel;
-	unsigned int	segment;
-};
-struct broadcast_dmb_init_info
-{
-	unsigned int rf_band;
-	unsigned int segment;
+	unsigned int	ch_num;
+	unsigned int	sub_ch_id;
 };
 
 typedef struct
@@ -143,11 +136,6 @@ typedef struct
 	int mode;
 }oneseg_sig_info;
 
-struct broadcast_dmb_sync_info
-{
-	unsigned int sync_status;
-	unsigned int sync_ext_status;
-};
 struct broadcast_dmb_sig_info
 {
 	union 
@@ -195,7 +183,7 @@ enum
 	LGE_BROADCAST_OPMODE_DMB = 2,
 	LGE_BROADCAST_OPMODE_VISUAL =3,
 	LGE_BROADCAST_OPMODE_DATA,
-	LGE_BROADCAST_OPMODE_ENSQUERY = 6,	/* LGE Added */
+	LGE_BROADCAST_OPMODE_ENSQUERY = 6,	/*           */
 	LGE_BROADCAST_OPMODE_SERVICE_MAX
 };
 

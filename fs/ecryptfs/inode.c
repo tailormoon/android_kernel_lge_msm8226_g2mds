@@ -36,10 +36,6 @@
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
-#if defined (FEATURE_SDCARD_MEDIAEXN_SYSTEMCALL_ENCRYPTION)
-#include <linux/unistd.h>
-#include "../LGSDEncManager.h"
-#endif //FEATURE_SDCARD_MEDIAEXN_SYSTEMCALL_ENCRYPTION
 static struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *dir;
@@ -147,6 +143,31 @@ static int ecryptfs_interpose(struct dentry *lower_dentry,
 	return 0;
 }
 
+static int ecryptfs_do_unlink(struct inode *dir, struct dentry *dentry,
+			      struct inode *inode)
+{
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	struct inode *lower_dir_inode = ecryptfs_inode_to_lower(dir);
+	struct dentry *lower_dir_dentry;
+	int rc;
+
+	dget(lower_dentry);
+	lower_dir_dentry = lock_parent(lower_dentry);
+	rc = vfs_unlink(lower_dir_inode, lower_dentry);
+	if (rc) {
+		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
+		goto out_unlock;
+	}
+	fsstack_copy_attr_times(dir, lower_dir_inode);
+	set_nlink(inode, ecryptfs_inode_to_lower(inode)->i_nlink);
+	inode->i_ctime = dir->i_ctime;
+	d_drop(dentry);
+out_unlock:
+	unlock_dir(lower_dir_dentry);
+	dput(lower_dentry);
+	return rc;
+}
+
 /**
  * ecryptfs_do_create
  * @directory_inode: inode of the new file's dentry's parent in ecryptfs
@@ -186,8 +207,10 @@ ecryptfs_do_create(struct inode *directory_inode,
 	}
 	inode = __ecryptfs_get_inode(lower_dentry->d_inode,
 				     directory_inode->i_sb);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		vfs_unlink(lower_dir_dentry->d_inode, lower_dentry);
 		goto out_lock;
+	}
 	fsstack_copy_attr_times(directory_inode, lower_dir_dentry->d_inode);
 	fsstack_copy_inode_size(directory_inode, lower_dir_dentry->d_inode);
 out_lock:
@@ -204,16 +227,11 @@ out:
  *
  * Returns zero on success
  */
-static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
-				    struct inode *ecryptfs_inode)
+int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
+			     struct inode *ecryptfs_inode)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
 		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
-#if 1 // FEATURE_SDCARD_ENCRYPTION
-	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
-		&ecryptfs_superblock_to_private(
-			ecryptfs_dentry->d_sb)->mount_crypt_stat;
-#endif
 	int rc = 0;
 
 	if (S_ISDIR(ecryptfs_inode->i_mode)) {
@@ -221,26 +239,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		goto out;
 	}
-#if defined (FEATURE_SDCARD_MEDIAEXN_SYSTEMCALL_ENCRYPTION)
-	if (getMediaProperty() == 1){
-		if(ecryptfs_mediaFileSearch(ecryptfs_dentry->d_name.name)){
-			crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-			goto out;
-		}
-	}
-
-    if(ecryptfs_asecFileSearch(ecryptfs_dentry->d_name.name)){
-        crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-        goto out;
-    }
-#endif //FEATURE_SDCARD_MEDIAEXN_SYSTEMCALL_ENCRYPTION
-#if 1 // FEATURE_SDCARD_ENCRYPTION
-	if (mount_crypt_stat && (mount_crypt_stat->flags
-			& ECRYPTFS_DECRYPTION_ONLY)) {
-		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-		goto out;
-	}
-#endif
 	ecryptfs_printk(KERN_DEBUG, "Initializing crypto context\n");
 	rc = ecryptfs_new_file_context(ecryptfs_inode);
 	if (rc) {
@@ -294,7 +292,9 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 	 * that this on disk file is prepared to be an ecryptfs file */
 	rc = ecryptfs_initialize_file(ecryptfs_dentry, ecryptfs_inode);
 	if (rc) {
-		drop_nlink(ecryptfs_inode);
+		ecryptfs_do_unlink(directory_inode, ecryptfs_dentry,
+				   ecryptfs_inode);
+		make_bad_inode(ecryptfs_inode);
 		unlock_new_inode(ecryptfs_inode);
 		iput(ecryptfs_inode);
 		goto out;
@@ -506,27 +506,7 @@ out_lock:
 
 static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	int rc = 0;
-	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct inode *lower_dir_inode = ecryptfs_inode_to_lower(dir);
-	struct dentry *lower_dir_dentry;
-
-	dget(lower_dentry);
-	lower_dir_dentry = lock_parent(lower_dentry);
-	rc = vfs_unlink(lower_dir_inode, lower_dentry);
-	if (rc) {
-		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
-		goto out_unlock;
-	}
-	fsstack_copy_attr_times(dir, lower_dir_inode);
-	set_nlink(dentry->d_inode,
-		  ecryptfs_inode_to_lower(dentry->d_inode)->i_nlink);
-	dentry->d_inode->i_ctime = dir->i_ctime;
-	d_drop(dentry);
-out_unlock:
-	unlock_dir(lower_dir_dentry);
-	dput(lower_dentry);
-	return rc;
+	return ecryptfs_do_unlink(dir, dentry, dentry->d_inode);
 }
 
 static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
@@ -1018,12 +998,6 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 			rc = 0;
 			crypt_stat->flags &= ~(ECRYPTFS_I_SIZE_INITIALIZED
 					       | ECRYPTFS_ENCRYPTED);
-#if 1 /* FEATURE_SDCARD_ENCRYPTION DEBUG */
-            if (mount_crypt_stat && (mount_crypt_stat->flags
-                        & ECRYPTFS_DECRYPTION_ONLY)) {
-                ecryptfs_printk(KERN_ERR, "%s:%d:: Error decryption_only set : ENCRYPTION DISABLED\n", __FUNCTION__, __LINE__);
-            }
-#endif
 		}
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
@@ -1037,12 +1011,6 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 			goto out;
 	}
 
-	if (S_ISREG(inode->i_mode)) {
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc)
-			goto out;
-		fsstack_copy_attr_all(inode, lower_inode);
-	}
 	memcpy(&lower_ia, ia, sizeof(lower_ia));
 	if (ia->ia_valid & ATTR_FILE)
 		lower_ia.ia_file = ecryptfs_file_to_lower(ia->ia_file);

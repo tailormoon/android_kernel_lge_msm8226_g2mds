@@ -576,7 +576,7 @@ static void __init build_mem_type_table(void)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		unsigned long v = pgprot_val(protection_map[i]);
+		pteval_t v = pgprot_val(protection_map[i]);
 		protection_map[i] = __pgprot(v | user_pgprot);
 	}
 
@@ -1500,7 +1500,9 @@ static void __init map_lowmem(void)
 		vm->flags = VM_LOWMEM | VM_ARM_STATIC_MAPPING;
 		vm->flags |= VM_ARM_MTYPE(type);
 		vm->caller = map_lowmem;
-		vm_area_add_early(vm++);
+		vm_area_add_early(vm);
+		mark_vmalloc_reserved_area(vm->addr, vm->size);
+		vm++;
 	}
 }
 

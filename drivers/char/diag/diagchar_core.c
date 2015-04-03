@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,6 +51,7 @@ MODULE_DESCRIPTION("Diag Char Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 
+#define MIN_SIZ_ALLOW 4
 #define INIT	1
 #define EXIT	-1
 struct diagchar_dev *driver;
@@ -978,7 +979,7 @@ long diagchar_ioctl(struct file *filp,
 			clear_client_dci_cumulative_log_mask(i);
 			/* send updated log mask to peripherals */
 			result =
-			diag_send_dci_log_mask(driver->smd_cntl[MODEM_DATA].ch);
+			diag_send_dci_log_mask(&driver->smd_cntl[MODEM_DATA]);
 			if (result != DIAG_DCI_NO_ERROR) {
 				mutex_unlock(&driver->dci_mutex);
 				return result;
@@ -988,7 +989,7 @@ long diagchar_ioctl(struct file *filp,
 			/* send updated event mask to peripherals */
 			result =
 			diag_send_dci_event_mask(
-				driver->smd_cntl[MODEM_DATA].ch);
+				&driver->smd_cntl[MODEM_DATA]);
 			if (result != DIAG_DCI_NO_ERROR) {
 				mutex_unlock(&driver->dci_mutex);
 				return result;
@@ -1117,7 +1118,7 @@ long diagchar_ioctl(struct file *filp,
 	case DIAG_IOCTL_VOTE_REAL_TIME:
 		if (copy_from_user(&rt_vote, (void *)ioarg, sizeof(struct
 							real_time_vote_t)))
-			result = -EFAULT;
+			return -EFAULT;
 		driver->real_time_update_busy++;
 		if (rt_vote.proc == DIAG_PROC_DCI) {
 			diag_dci_set_real_time(current->tgid,
@@ -1440,16 +1441,6 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	int err, ret = 0, pkt_type, token_offset = 0;
 	int remote_proc = 0;
 	uint8_t index;
-//2013-03-06 seongmook.yim(seongmook.yim@lge.com) [P6/MDMBSP] ADD LGODL [START]
-#ifdef CONFIG_LGE_DM_DEV
-	char *buf_dev;
-#endif /*CONFIG_LGE_DM_DEV*/
-//2013-03-06 seongmook.yim(seongmook.yim@lge.com) [P6/MDMBSP] ADD LGODL [END]
-
-#ifdef CONFIG_LGE_DM_APP
-	char *buf_cmp;
-#endif
-
 #ifdef DIAG_DEBUG
 	int length = 0, i;
 #endif
@@ -1462,6 +1453,10 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	index = 0;
 	/* Get the packet type F3/log/event/Pkt response */
 	err = copy_from_user((&pkt_type), buf, 4);
+	if (err) {
+		pr_alert("diag: copy failed for pkt_type\n");
+		return -EAGAIN;
+	}
 	/* First 4 bytes indicate the type of payload - ignore these */
 	if (count < 4) {
 		pr_err("diag: Client sending short data\n");
@@ -1482,26 +1477,6 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		return -EIO;
 	}
 #endif /* DIAG over USB */
-
-#ifdef CONFIG_LGE_DM_APP
-	if (driver->logging_mode == DM_APP_MODE) {
-		/* only diag cmd #250 for supporting testmode tool */
-		buf_cmp = (char *)buf + 4;
-		if (*(buf_cmp) != 0xFA)
-			return 0;
-	}
-#endif
-
-//2013-03-06 seongmook.yim(seongmook.yim@lge.com) [P6/MDMBSP] ADD LGODL [START]
-#ifdef CONFIG_LGE_DM_DEV
-	if (driver->logging_mode == DM_DEV_MODE) {
-		/* only diag cmd #250 for supporting testmode tool */
-		buf_dev = (char *)buf + 4;
-		if (*(buf_dev) != 0xFA)
-			return 0;
-	}
-#endif
-//2013-03-06 seongmook.yim(seongmook.yim@lge.com) [P6/MDMBSP] ADD LGODL [END]
 	if (pkt_type == DCI_DATA_TYPE) {
 		user_space_data = diagmem_alloc(driver, payload_size,
 								POOL_TYPE_USER);
@@ -1523,8 +1498,9 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		return err;
 	}
 	if (pkt_type == CALLBACK_DATA_TYPE) {
-		if (payload_size > driver->itemsize) {
-			pr_err("diag: Dropping packet, packet payload size crosses 4KB limit. Current payload size %d\n",
+		if (payload_size > driver->itemsize ||
+				payload_size <= MIN_SIZ_ALLOW) {
+			pr_err("diag: Dropping packet, invalid packet size. Current payload size %d\n",
 				payload_size);
 			driver->dropped_count++;
 			return -EBADMSG;
@@ -1658,6 +1634,11 @@ static int diagchar_write(struct file *file, const char __user *buf,
 			diag_get_remote(*(int *)driver->user_space_data_buf);
 
 		if (remote_proc) {
+			if (payload_size <= MIN_SIZ_ALLOW) {
+				pr_err("diag: Integer underflow in %s, payload size: %d",
+							__func__, payload_size);
+				return -EBADMSG;
+			}
 			token_offset = 4;
 			payload_size -= 4;
 			buf += 4;
@@ -2082,67 +2063,6 @@ void diagfwd_bridge_fn(int type)
 inline void diagfwd_bridge_fn(int type) { }
 #endif
 
-#ifdef CONFIG_LGE_DIAG_ENABLE_SPR
-int user_diag_enable = 0;
-
-static ssize_t read_diag_enable(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	int ret;
-	ret = sprintf(buf, "%d", user_diag_enable);
-	pr_info("%s: diag_enable=%d ret=%d\n", __func__, user_diag_enable,ret);
-	return ret;
-}
-
-static ssize_t write_diag_enable(struct device *dev,
-        struct device_attribute *attr,
-        const char *buf, size_t size)
-{
-    pr_info("%s: diag_enable=%s size=%d\n", __func__, buf,size);
-    sscanf(buf, "%d", &user_diag_enable);
-    return size;
-}
-
-static DEVICE_ATTR(diag_enable, S_IRUGO | S_IWUSR, read_diag_enable, write_diag_enable);
-
-int lge_diag_create_file(struct platform_device *pdev)
-{
-    int ret;
-
-    ret = device_create_file(&pdev->dev, &dev_attr_diag_enable);
-    if (ret) {
-        device_remove_file(&pdev->dev, &dev_attr_diag_enable);
-        return ret;
-    }
-    return ret;
-}
-
-int lge_diag_remove_file(struct platform_device *pdev)
-{
-    device_remove_file(&pdev->dev, &dev_attr_diag_enable);
-    return 0;
-}
-
-static int lge_diag_cmd_probe(struct platform_device *pdev)
-{
-    return lge_diag_create_file(pdev);
-}
-
-static int lge_diag_cmd_remove(struct platform_device *pdev)
-{
-    lge_diag_remove_file(pdev);
-    return 0;
-}
-
-static struct platform_driver lge_diag_cmd_driver = {
-    .probe		= lge_diag_cmd_probe,
-    .remove 	= lge_diag_cmd_remove,
-    .driver 	= {
-        .name = "lg_diag_cmd",
-        .owner	= THIS_MODULE,
-    },
-};
-#endif
-
 static int __init diagchar_init(void)
 {
 	dev_t dev;
@@ -2231,10 +2151,6 @@ static int __init diagchar_init(void)
 		printk(KERN_INFO "kzalloc failed\n");
 		goto fail;
 	}
-
-#ifdef CONFIG_LGE_DIAG_ENABLE_SPR
-	platform_driver_register(&lge_diag_cmd_driver);
-#endif
 
 	pr_info("diagchar initialized now");
 	return 0;

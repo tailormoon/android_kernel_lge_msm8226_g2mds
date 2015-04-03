@@ -192,6 +192,7 @@ struct sdio_func_tuple;
 struct mmc_queue;
 
 #define SDIO_MAX_FUNCS		7
+#define MMC_MAX_CARD_INFIRMITY 8
 
 enum mmc_packed_stop_reasons {
 	EXCEEDS_SEGMENTS = 0,
@@ -352,6 +353,9 @@ struct mmc_card {
 #define MMC_QUIRK_INAND_DATA_TIMEOUT  (1<<8)    /* For incorrect data timeout */
 /* To avoid eMMC device getting broken permanently due to HPI feature */
 #define MMC_QUIRK_BROKEN_HPI (1 << 11)
+ /* Skip data-timeout advertised by card */
+#define MMC_QUIRK_BROKEN_DATA_TIMEOUT	(1<<12)
+
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -393,6 +397,8 @@ struct mmc_card {
 	struct notifier_block        reboot_notify;
 	bool issue_long_pon;
 	u8 *cached_ext_csd;
+
+	unsigned int		infirmity;	/* measure of a card's health */
 };
 
 /*
@@ -554,6 +560,8 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 #define mmc_card_clr_doing_bkops(c)	((c)->state &= ~MMC_STATE_DOING_BKOPS)
 #define mmc_card_set_need_bkops(c)	((c)->state |= MMC_STATE_NEED_BKOPS)
 #define mmc_card_clr_need_bkops(c)	((c)->state &= ~MMC_STATE_NEED_BKOPS)
+#define mmc_card_recoverable(c) ((c) && (c)->host && \
+				!((c)->host->caps & MMC_CAP_NONREMOVABLE))
 /*
  * Quirk add/remove for MMC products.
  */

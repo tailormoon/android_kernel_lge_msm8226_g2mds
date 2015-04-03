@@ -127,8 +127,8 @@ enum wcd9xxx_mbhc_clk_freq {
 enum wcd9xxx_mbhc_event_state {
 	MBHC_EVENT_PA_HPHL,
 	MBHC_EVENT_PA_HPHR,
-	MBHC_EVENT_PRE_TX_3_ON,
-	MBHC_EVENT_POST_TX_3_OFF,
+	MBHC_EVENT_PRE_TX_1_3_ON,
+	MBHC_EVENT_POST_TX_1_3_OFF,
 };
 
 struct wcd9xxx_mbhc_general_cfg {
@@ -270,7 +270,7 @@ struct wcd9xxx_mbhc_cb {
 			   enum mbhc_impedance_detect_stages stage);
 	void (*compute_impedance) (s16 *, s16 *, uint32_t *, uint32_t *);
 	void (*enable_mbhc_txfe) (struct snd_soc_codec *, bool);
-	int (*enable_mb_source) (struct snd_soc_codec *, bool, bool);
+	int (*enable_mb_source) (struct snd_soc_codec *, bool);
 	void (*setup_int_rbias) (struct snd_soc_codec *, bool);
 	void (*pull_mb_to_vddio) (struct snd_soc_codec *, bool);
 };

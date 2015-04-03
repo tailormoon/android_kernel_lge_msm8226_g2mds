@@ -409,25 +409,16 @@ static  ssize_t ioctl_isdbt_read(ISDBT_OPEN_INFO_T *hOpen  ,void __user *arg)
 	struct broadcast_dmb_data_info __user* puserdata = (struct broadcast_dmb_data_info  __user*)arg;
 	int ret = -ENODEV;
 	size_t count;
-	char *buf;
-
-#if 0
 	DMB_BB_HEADER_TYPE dmb_header;
 	static int read_count = 0;
-#endif
+	char *buf;
 
 	s32 avail;
 	struct fci_ringbuffer *cibuf = &hOpen->RingBuffer;
 	ssize_t len, total_len = 0;
 
-#if 0
 	buf = puserdata->data_buf + sizeof(DMB_BB_HEADER_TYPE);
 	count = puserdata->data_buf_size - sizeof(DMB_BB_HEADER_TYPE);
-	count = (count/188)*188;
-#endif
-
-	buf = puserdata->data_buf;
-	count = puserdata->data_buf_size;
 	count = (count/188)*188;
 
     if (!cibuf->data || !count)
@@ -453,7 +444,6 @@ static  ssize_t ioctl_isdbt_read(ISDBT_OPEN_INFO_T *hOpen  ,void __user *arg)
 	total_len = fci_ringbuffer_read_user(cibuf, buf, len);
 	mutex_unlock(&ringbuffer_lock);
 
-#if 0
 	dmb_header.data_type = DMB_BB_DATA_TS;
 	dmb_header.size = (unsigned short)total_len;
 	dmb_header.subch_id = ch_num;//0xFF;
@@ -461,14 +451,7 @@ static  ssize_t ioctl_isdbt_read(ISDBT_OPEN_INFO_T *hOpen  ,void __user *arg)
 
 	ret = copy_to_user(puserdata->data_buf, &dmb_header, sizeof(DMB_BB_HEADER_TYPE));
 
-	puserdata->copied_size = total_len; //+ sizeof(DMB_BB_HEADER_TYPE);
-#endif
-
-	if (total_len > 0) {
-		puserdata->copied_size = total_len;
-		puserdata->packet_cnt = total_len / 188;
-		ret = BBM_OK;
-	}
+	puserdata->copied_size = total_len + sizeof(DMB_BB_HEADER_TYPE);
 
 	return ret;
 }
@@ -821,7 +804,7 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 			{
 				struct broadcast_dmb_set_ch_info udata;
 				u32 f_rf;
-				//PRINTF(0, "LGE_BROADCAST_DMB_IOCTL_SET_CH \n");
+				//                                               
 
 				if(copy_from_user(&udata, argp, sizeof(struct broadcast_dmb_set_ch_info)))
 				{
@@ -831,9 +814,9 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 				else
 				{
 				#ifdef CONFIG_LGE_BROADCAST_BRAZIL_FREQ					
-					f_rf = (udata.channel- 14) * 6000 + 473143;
+					f_rf = (udata.ch_num- 14) * 6000 + 473143;
 				#else
-					f_rf = (udata.channel- 13) * 6000 + 473143;
+					f_rf = (udata.ch_num- 13) * 6000 + 473143;
 				#endif			
 					//PRINTF(0, "IOCTL_ISDBT_SET_FREQ freq:%d, RF:%d\n",udata.ch_num,f_rf);
 					if(udata.mode == LGE_BROADCAST_OPMODE_ENSQUERY)
@@ -859,7 +842,7 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 					// PRINTF(0, "IOCTL_ISDBT_SET_FREQ \n");
 					totalTS=0;
 					totalErrTS=0;
-					ch_num = udata.channel;
+					ch_num = udata.ch_num;
 					mutex_lock(&ringbuffer_lock);
 					fci_ringbuffer_flush(&hOpen->RingBuffer);
 					mutex_unlock(&ringbuffer_lock);
@@ -870,7 +853,7 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 		case LGE_BROADCAST_DMB_IOCTL_GET_SIG_INFO:
 			{
 				struct broadcast_dmb_sig_info udata;
-				//PRINTF(0, "LGE_BROADCAST_DMB_IOCTL_GET_SIG_INFO \n");
+				//                                                     
 
 				isdbt_get_signal_info(hInit, &isdbt_signal_info.lock, &isdbt_signal_info.ber, &isdbt_signal_info.per, &isdbt_signal_info.rssi, &isdbt_signal_info.cn);
 
@@ -909,7 +892,7 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 
 		case LGE_BROADCAST_DMB_IOCTL_GET_DMB_DATA:
-			//PRINTF(0, "LGE_BROADCAST_DMB_IOCTL_GET_DMB_DATA \n");
+			//                                                     
 			res = ioctl_isdbt_read(hOpen,argp);
 			break;
 		case LGE_BROADCAST_DMB_IOCTL_OPEN:
@@ -938,16 +921,7 @@ long isdbt_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 
 int isdbt_init(void)
 {
-	s32 res = 0;
-
-	//20140103_yoonkil.kim Code for revision separation [START]
-#if defined(CONFIG_MACH_MSM8X10_W6DS_TIM_BR) || defined(CONFIG_MACH_MSM8X10_W6DS_GLOBAL_SCA)
-	if(lge_get_board_revno() >= HW_REV_B){
-		PRINTF(hInit, "1SEG fc8150 Not support in MSM8610_W6DS_TIM_BR Rev.B... board\n");
-		return res;
-	}
-#endif
-	//20140103_yoonkil.kim Code for revision separation [END]
+	s32 res;
 
 	PRINTF(hInit, "isdbt_init DRV V1p12 20130701\n");
 
